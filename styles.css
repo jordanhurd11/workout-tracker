@@ -671,6 +671,303 @@ footer {
     color: #666;
 }
 
+/* ========================================
+   CREATE WORKOUT SECTION
+   ======================================== */
+
+.create-workout-section {
+    background: #f9f9f9;
+    padding: 25px;
+    border-radius: 8px;
+    border-left: 5px solid #667eea;
+}
+
+.workout-setup-form {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.workout-setup-form .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.add-exercise-form {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 2px solid #667eea;
+    margin: 20px 0;
+}
+
+.add-exercise-form.hidden {
+    display: none;
+}
+
+.add-exercise-form h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+}
+
+.exercise-sets-container {
+    background: #f0f7ff;
+    border: 2px dashed #667eea;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    min-height: 100px;
+}
+
+.exercise-sets-container.empty {
+    display: none;
+}
+
+.exercise-set-input-group {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.exercise-set-input-group .form-group {
+    margin-bottom: 0;
+}
+
+.exercise-set-input-group label {
+    font-size: 0.9em;
+}
+
+.exercise-set-number {
+    grid-column: 1 / -1;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.exercise-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.exercise-form-actions .btn {
+    flex: 1;
+}
+
+.current-workout-display {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 2px solid #667eea;
+    margin: 20px 0;
+}
+
+.current-workout-display.hidden {
+    display: none;
+}
+
+.current-workout-display h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+}
+
+.current-exercises-list {
+    margin-bottom: 20px;
+}
+
+.current-exercise-item {
+    background: #f0f7ff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+}
+
+.current-exercise-item-details h4 {
+    color: #333;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.current-exercise-item-muscle {
+    color: #666;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+}
+
+.current-exercise-item-sets {
+    color: #666;
+    font-size: 0.85em;
+}
+
+.current-exercise-item-remove {
+    flex-shrink: 0;
+}
+
+.current-exercise-item-remove .btn-delete {
+    padding: 6px 12px;
+    font-size: 0.8em;
+}
+
+.workout-save-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.workout-save-actions .btn {
+    flex: 1;
+}
+
+.btn-success {
+    background: #51cf66;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #40c057;
+    transform: translateY(-2px);
+}
+
+/* ========================================
+   WORKOUT DETAIL MODAL
+   ======================================== */
+
+.workout-detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.workout-detail-modal.hidden {
+    display: none;
+}
+
+.workout-detail-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.workout-detail-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #667eea;
+}
+
+.workout-detail-header h2 {
+    color: white;
+    margin: 0;
+    font-size: 1.8em;
+}
+
+.workout-detail-body {
+    padding: 30px;
+}
+
+.workout-detail-date {
+    color: #666;
+    font-size: 1.1em;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.workout-detail-exercises {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.workout-detail-exercise {
+    background: #f9f9f9;
+    border-left: 4px solid #667eea;
+    padding: 20px;
+    border-radius: 6px;
+}
+
+.workout-detail-exercise h4 {
+    color: #333;
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+.workout-detail-exercise-muscle {
+    color: #666;
+    font-size: 0.95em;
+    margin-bottom: 12px;
+}
+
+.workout-detail-exercise-sets {
+    margin-top: 12px;
+}
+
+.workout-detail-set {
+    background: white;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #764ba2;
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* ========================================
+   EXERCISE PROGRESS CHART
+   ======================================== */
+
+.exercise-chart-container {
+    margin-bottom: 40px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    background: #f9f9f9;
+}
+
+.exercise-chart-canvas {
+    width: 100%;
+    height: 400px;
+    background: white;
+    border-radius: 4px;
+}
+
+.exercise-chart-empty {
+    text-align: center;
+    color: #999;
+    padding: 40px 20px;
+    font-size: 1em;
+}
+
 .hidden {
     display: none !important;
 }
@@ -695,5 +992,47 @@ footer {
 
     .exercise-detail-body {
         padding: 20px;
+    }
+
+    .workout-detail-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .workout-detail-header h2 {
+        font-size: 1.4em;
+    }
+
+    .workout-detail-body {
+        padding: 20px;
+    }
+
+    .exercise-form-actions {
+        flex-direction: column;
+    }
+
+    .exercise-form-actions .btn {
+        width: 100%;
+    }
+
+    .workout-save-actions {
+        flex-direction: column;
+    }
+
+    .workout-save-actions .btn {
+        width: 100%;
+    }
+
+    .current-exercise-item {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .current-exercise-item-remove .btn-delete {
+        width: 100%;
+    }
+
+    .exercise-set-input-group {
+        grid-template-columns: 1fr;
     }
 }

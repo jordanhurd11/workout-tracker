@@ -14,25 +14,18 @@
         </header>
 
         <main>
-            <!-- Add Workout Section -->
-            <section class="add-workout-section">
-                <h2>Add a Workout</h2>
-                <form id="workoutForm" class="workout-form">
+            <!-- Create Workout Section -->
+            <section class="create-workout-section">
+                <h2>Create a Workout</h2>
+                
+                <!-- Workout Setup Form -->
+                <div id="workoutSetupForm" class="workout-setup-form">
                     <div class="form-group">
-                        <label for="exercise">Exercise</label>
-                        <select id="exercise" required>
-                            <option value="">Select an exercise...</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="numSets">Number of Sets</label>
+                        <label for="workoutName">Workout Name</label>
                         <input 
-                            type="number" 
-                            id="numSets" 
-                            placeholder="4" 
-                            min="1" 
-                            max="20"
+                            type="text" 
+                            id="workoutName" 
+                            placeholder="e.g., Push Day, Leg Day, Upper Body"
                             required
                         >
                     </div>
@@ -46,10 +39,50 @@
                         >
                     </div>
 
-                    <div id="setsContainer" class="sets-container"></div>
+                    <button type="button" id="startWorkoutBtn" class="btn btn-secondary">Start Workout</button>
+                </div>
 
-                    <button type="submit" class="btn btn-primary">Add Workout</button>
-                </form>
+                <!-- Exercise Addition Form (appears after workout setup) -->
+                <div id="addExerciseForm" class="add-exercise-form hidden">
+                    <h3>Add Exercise to Workout</h3>
+                    
+                    <div class="form-group">
+                        <label for="exerciseSelect">Exercise</label>
+                        <select id="exerciseSelect" required>
+                            <option value="">Select an exercise...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exerciseNumSets">Number of Sets</label>
+                        <input 
+                            type="number" 
+                            id="exerciseNumSets" 
+                            placeholder="4" 
+                            min="1" 
+                            max="20"
+                            required
+                        >
+                    </div>
+
+                    <div id="exerciseSetsContainer" class="exercise-sets-container"></div>
+
+                    <div class="exercise-form-actions">
+                        <button type="button" id="addExerciseBtn" class="btn btn-primary">Add Exercise</button>
+                        <button type="button" id="cancelExerciseBtn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Current Workout Exercises Display -->
+                <div id="currentWorkoutDisplay" class="current-workout-display hidden">
+                    <h3>Exercises in This Workout</h3>
+                    <div id="currentExercisesList" class="current-exercises-list"></div>
+                    <div class="workout-save-actions">
+                        <button type="button" id="addAnotherExerciseBtn" class="btn btn-secondary">Add Another Exercise</button>
+                        <button type="button" id="saveWorkoutBtn" class="btn btn-success">Save Workout</button>
+                        <button type="button" id="cancelWorkoutBtn" class="btn btn-danger">Cancel Workout</button>
+                    </div>
+                </div>
             </section>
 
             <!-- Stats and Filter Section -->
@@ -102,6 +135,22 @@
                 </div>
             </section>
         </main>
+
+        <!-- Workout Detail Modal -->
+        <div id="workoutDetailModal" class="workout-detail-modal hidden">
+            <div class="workout-detail-content">
+                <div class="workout-detail-header">
+                    <h2 id="workoutDetailTitle">Workout Name</h2>
+                    <button id="closeWorkoutDetailBtn" class="btn btn-close">Close</button>
+                </div>
+                <div class="workout-detail-body">
+                    <p id="workoutDetailDate" class="workout-detail-date"></p>
+                    <div id="workoutDetailExercises" class="workout-detail-exercises">
+                        <!-- Filled by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Exercise Detail Modal -->
         <div id="exerciseDetailModal" class="exercise-detail-modal hidden">
