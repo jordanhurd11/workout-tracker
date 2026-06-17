@@ -92,6 +92,9 @@ const totalVolumeDisplay = document.getElementById('totalVolume');
 // Exercise Progress Section
 const workoutProgressContainer = document.getElementById('workoutProgress');
 
+// Muscle Group Progress Section
+const muscleGroupStatsContainer = document.getElementById('muscleGroupStats');
+
 // Workout History Section
 const workoutHistoryContainer = document.getElementById('workoutHistory');
 const clearBtn = document.getElementById('clearBtn');
@@ -472,6 +475,343 @@ function renderExerciseProgress() {
 }
 
 // ========================================
+// 12B. GET MUSCLE GROUP STATS
+// ========================================
+
+function getMuscleGroupStats(workoutsArray) {
+    const muscleGroupData = {};
+
+    // Aggregate all exercises by muscle group
+    workoutsArray.forEach(workout => {
+        workout.exercises.forEach(exercise => {
+            const muscle = exercise.muscleGroup;
+
+            if (!muscleGroupData[muscle]) {
+                muscleGroupData[muscle] = {
+                    muscle: muscle,
+                    totalVolume: 0,
+                    exerciseCount: 0,
+                    maxWeight: 0,
+                    workoutCount: 0,
+                    lastWorkoutDate: null,
+                    exercises: new Set()
+                };
+            }
+
+            muscleGroupData[muscle].exercises.add(exercise.exercise);
+
+            // Calculate volume for each set
+            exercise.sets.forEach(set => {
+                muscleGroupData[muscle].totalVolume += set.weight * set.reps;
+                muscleGroupData[muscle].maxWeight = Math.max(muscleGroupData[muscle].maxWeight, set.weight);
+            });
+
+            // Track last workout date
+            const workoutDate = new Date(workout.date);
+            if (!muscleGroupData[muscle].lastWorkoutDate || workoutDate > new Date(muscleGroupData[muscle].lastWorkoutDate)) {
+                muscleGroupData[muscle].lastWorkoutDate = workout.date;
+            }
+
+            muscleGroupData[muscle].workoutCount++;
+        });
+    });
+
+    // Convert to array and add exercise count
+    return Object.values(muscleGroupData)
+        .map(data => ({
+            ...data,
+            exerciseCount: data.exercises.size
+        }))
+        .sort((a, b) => b.totalVolume - a.totalVolume);
+}
+
+// ========================================
+// 12B2. CALCULATE MUSCLE GROUP PERCENT CHANGES
+// ========================================
+
+function getMuscleGroupPercentChanges() {
+    const allEntries = getAllExerciseEntries(workouts);
+    
+    // Group exercises by muscle group
+    const muscleGroupData = {};
+    
+    allEntries.forEach(entry => {
+        const muscle = entry.muscleGroup;
+        if (!muscleGroupData[muscle]) {
+            muscleGroupData[muscle] = [];
+        }
+        muscleGroupData[muscle].push({
+            exercise: entry.exercise,
+            date: new Date(entry.workoutDate),
+            weight: entry.highestWeight
+        });
+    });
+
+    // Calculate percent change for each muscle group
+    const percentChanges = [];
+    
+    Object.keys(muscleGroupData).forEach(muscleGroup => {
+        const exercisesInGroup = muscleGroupData[muscleGroup];
+        
+        // Group by exercise name
+        const exerciseHistory = {};
+        exercisesInGroup.forEach(entry => {
+            if (!exerciseHistory[entry.exercise]) {
+                exerciseHistory[entry.exercise] = [];
+            }
+            exerciseHistory[entry.exercise].push({
+                date: entry.date,
+                weight: entry.weight
+            });
+        });
+
+        // Sort each exercise's history by date
+        Object.keys(exerciseHistory).forEach(ex => {
+            exerciseHistory[ex].sort((a, b) => a.date - b.date);
+        });
+
+        // Calculate percent changes for each exercise
+        const exerciseChanges = [];
+        Object.keys(exerciseHistory).forEach(exercise => {
+            const history = exerciseHistory[exercise];
+            if (history.length >= 2) {
+                const previousWeight = history[history.length - 2].weight;
+                const currentWeight = history[history.length - 1].weight;
+                const percentChange = ((currentWeight - previousWeight) / previousWeight) * 100;
+                exerciseChanges.push(percentChange);
+            }
+        });
+
+        // Calculate average percent change for the muscle group
+        if (exerciseChanges.length > 0) {
+            const avgChange = exerciseChanges.reduce((sum, change) => sum + change, 0) / exerciseChanges.length;
+            percentChanges.push({
+                muscle: muscleGroup,
+                percentChange: avgChange,
+                exerciseCount: exerciseHistory.length,
+                isIncrease: avgChange >= 0
+            });
+        }
+    });
+
+    return percentChanges.sort((a, b) => b.percentChange - a.percentChange);
+}
+
+// ========================================
+// 12B3. DRAW MUSCLE GROUP RADAR CHART
+// ========================================
+
+function drawMuscleGroupRadarChart() {
+    const radarCanvas = document.getElementById('radarChart');
+    if (!radarCanvas) return;
+
+    const percentChanges = getMuscleGroupPercentChanges();
+
+    if (percentChanges.length === 0) {
+        radarCanvas.style.display = 'none';
+        return;
+    }
+
+    radarCanvas.style.display = 'block';
+    const ctx = radarCanvas.getContext('2d');
+    const width = radarCanvas.width;
+    const height = radarCanvas.height;
+
+    // Clear canvas with subtle background
+    ctx.clearRect(0, 0, width, height);
+    const bgGradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height));
+    bgGradient.addColorStop(0, '#ffffff');
+    bgGradient.addColorStop(1, '#f8f9fa');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const centerX = width / 2;
+    const centerY = height / 2 - 10; // Shift up slightly for better layout
+    const radius = Math.min(width, height) / 2 - 100;
+    const sides = percentChanges.length;
+    const angleSlice = (Math.PI * 2) / sides;
+
+    // Draw concentric circles with gradient
+    for (let i = 1; i <= 5; i++) {
+        const r = (radius / 5) * i;
+        const opacity = 0.15 - (i * 0.02);
+        ctx.strokeStyle = `rgba(102, 126, 234, ${opacity})`;
+        ctx.lineWidth = i === 5 ? 2 : 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // Draw axes and labels
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    percentChanges.forEach((change, i) => {
+        const angle = angleSlice * i - Math.PI / 2;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+
+        // Draw axis line
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        // Draw label with better positioning
+        const labelDistance = radius + 35;
+        const labelX = centerX + labelDistance * Math.cos(angle);
+        const labelY = centerY + labelDistance * Math.sin(angle);
+        ctx.fillStyle = '#2d2d2d';
+        ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(change.muscle, labelX, labelY);
+    });
+
+    // Draw data points first to layer properly
+    const dataPoints = [];
+    percentChanges.forEach((change, i) => {
+        const angle = angleSlice * i - Math.PI / 2;
+        const normalizedValue = Math.max(0, Math.min(100, change.percentChange + 50));
+        const value = (normalizedValue / 100) * radius;
+        const x = centerX + value * Math.cos(angle);
+        const y = centerY + value * Math.sin(angle);
+        dataPoints.push({ x, y, change });
+    });
+
+    // Draw data polygon with gradient
+    const polyGradient = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
+    polyGradient.addColorStop(0, 'rgba(102, 126, 234, 0.15)');
+    polyGradient.addColorStop(0.5, 'rgba(102, 126, 234, 0.08)');
+    polyGradient.addColorStop(1, 'rgba(102, 126, 234, 0.15)');
+    
+    ctx.strokeStyle = '#667eea';
+    ctx.fillStyle = polyGradient;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    dataPoints.forEach((point, i) => {
+        if (i === 0) {
+            ctx.moveTo(point.x, point.y);
+        } else {
+            ctx.lineTo(point.x, point.y);
+        }
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw data points with glow effect
+    dataPoints.forEach((point) => {
+        const color = point.change.isIncrease ? '#4caf50' : '#f44336';
+        
+        // Glow effect
+        ctx.fillStyle = color.replace(')', ', 0.2)').replace('rgb', 'rgba');
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Outer ring
+        ctx.strokeStyle = color.replace(')', ', 0.4)').replace('rgb', 'rgba');
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Center dot
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Draw legend with better styling
+    ctx.font = '12px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    const legendY = height - 20;
+    ctx.fillText('● Green: Gain  |  ● Red: Decline  |  Center: 0%  |  Outer: +100%', centerX, legendY);
+}
+
+// ========================================
+// 12C. RENDER MUSCLE GROUP PROGRESS
+// ========================================
+
+function renderMuscleGroupProgress() {
+    const muscleGroups = getMuscleGroupStats(workouts);
+    muscleGroupStatsContainer.innerHTML = '';
+
+    if (muscleGroups.length === 0) {
+        muscleGroupStatsContainer.innerHTML = '<p class="empty-message">No workouts yet. Add one to track muscle group progress!</p>';
+        // Draw empty radar
+        const radarCanvas = document.getElementById('radarChart');
+        if (radarCanvas) {
+            radarCanvas.style.display = 'none';
+        }
+        return;
+    }
+
+    // Get percent changes for all muscle groups
+    const percentChangesByMuscle = getMuscleGroupPercentChanges();
+    const changeMap = {};
+    percentChangesByMuscle.forEach(change => {
+        changeMap[change.muscle] = change;
+    });
+
+    muscleGroups.forEach(group => {
+        const dateObj = new Date(group.lastWorkoutDate);
+        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        const change = changeMap[group.muscle];
+        const percentChange = change ? change.percentChange : 0;
+        const hasChange = change ? true : false;
+
+        const card = document.createElement('div');
+        card.className = 'muscle-group-card';
+        
+        card.innerHTML = `
+            <div class="muscle-group-card-name">${group.muscle}</div>
+            <div class="muscle-group-card-stats">
+                <div class="muscle-stat">
+                    <div class="muscle-stat-label">Total Volume</div>
+                    <div class="muscle-stat-value">${group.totalVolume.toLocaleString()} lbs</div>
+                </div>
+                <div class="muscle-stat">
+                    <div class="muscle-stat-label">Max Weight</div>
+                    <div class="muscle-stat-value">${group.maxWeight} lbs</div>
+                </div>
+                <div class="muscle-stat">
+                    <div class="muscle-stat-label">Exercises</div>
+                    <div class="muscle-stat-value">${group.exerciseCount}</div>
+                </div>
+                <div class="muscle-stat">
+                    <div class="muscle-stat-label">Workouts</div>
+                    <div class="muscle-stat-value">${group.workoutCount}</div>
+                </div>
+            </div>
+            <div class="muscle-group-card-changes">
+                <div class="avg-change">
+                    <span class="change-label">% Change:</span>
+                    <span class="change-value ${percentChange >= 0 ? 'positive' : 'negative'}">
+                        ${hasChange ? (percentChange >= 0 ? '+' : '') + percentChange.toFixed(1) + '%' : 'Need 2 workouts'}
+                    </span>
+                </div>
+            </div>
+            <div class="muscle-group-card-date">Last: ${dateStr}</div>
+        `;
+
+        muscleGroupStatsContainer.appendChild(card);
+    });
+
+    // Draw the main radar chart showing all muscle groups
+    drawMuscleGroupRadarChart();
+}
+
+// ========================================
 // 13. GET EXERCISE HISTORY
 // ========================================
 
@@ -774,6 +1114,7 @@ function updateTotalStats() {
 
 function renderStats() {
     updateTotalStats();
+    renderMuscleGroupProgress();
     renderWorkoutHistory();
     renderExerciseProgress();
 }
