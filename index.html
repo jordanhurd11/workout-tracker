@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Progress Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💪 Workout Progress Tracker</h1>
+            <p class="subtitle">Track your fitness journey</p>
+        </header>
+
+        <main>
+            <!-- Add Workout Section -->
+            <section class="add-workout-section">
+                <h2>Add a Workout</h2>
+                <form id="workoutForm" class="workout-form">
+                    <div class="form-group">
+                        <label for="exercise">Exercise</label>
+                        <select id="exercise" required>
+                            <option value="">Select an exercise...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numSets">Number of Sets</label>
+                        <input 
+                            type="number" 
+                            id="numSets" 
+                            placeholder="4" 
+                            min="1" 
+                            max="20"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="workoutDate">Workout Date</label>
+                        <input 
+                            type="date" 
+                            id="workoutDate" 
+                            required
+                        >
+                    </div>
+
+                    <div id="setsContainer" class="sets-container"></div>
+
+                    <button type="submit" class="btn btn-primary">Add Workout</button>
+                </form>
+            </section>
+
+            <!-- Stats and Filter Section -->
+            <section class="stats-section">
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <h3>Total Workouts</h3>
+                        <p id="totalWorkouts" class="stat-value">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Volume (lbs)</h3>
+                        <p id="totalVolume" class="stat-value">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Progress Graphs Section -->
+            <section class="graphs-section">
+                <h2>Muscle Group Progress</h2>
+                <div class="radar-container">
+                    <canvas id="radarChart"></canvas>
+                    <div id="muscleGroupStats" class="muscle-group-stats"></div>
+                </div>
+            </section>
+
+            <!-- Workout Progress Section -->
+            <section class="progress-section">
+                <h2>Workout Progress (Latest by Exercise)</h2>
+                <div id="workoutProgress" class="progress-container">
+                    <p class="empty-message">No workouts yet. Add one to track your progress!</p>
+                </div>
+            </section>
+
+            <!-- Personal Records Section -->
+            <section class="records-section">
+                <h2>Personal Records</h2>
+                <div id="personalRecords" class="records-container">
+                    <p class="empty-message">No workouts yet. Add one to see your personal records!</p>
+                </div>
+            </section>
+
+            <!-- Workout History Section -->
+            <section class="history-section">
+                <h2>Workout History</h2>
+                <div class="history-controls">
+                    <button id="clearBtn" class="btn btn-danger">Clear All History</button>
+                </div>
+                <div id="workoutHistory" class="workout-history">
+                    <p class="empty-message">No workouts yet. Add one to get started!</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Exercise Detail Modal -->
+        <div id="exerciseDetailModal" class="exercise-detail-modal hidden">
+            <div class="exercise-detail-content">
+                <div class="exercise-detail-header">
+                    <h2 id="exerciseDetailTitle">Exercise Name</h2>
+                    <button id="closeDetailBtn" class="btn btn-close">Close</button>
+                </div>
+                <div class="exercise-detail-body">
+                    <div class="exercise-chart-container">
+                        <canvas id="exerciseProgressChart"></canvas>
+                    </div>
+                    <div id="exerciseWorkoutHistory" class="exercise-workout-history">
+                        <!-- Filled by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

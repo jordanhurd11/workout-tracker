@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Script Test</title>
+</head>
+<body>
+    <h1>Script Loading Test</h1>
+    <div id="status">Loading...</div>
+    <script>
+        window.addEventListener('load', () => {
+            const status = document.getElementById('status');
+            if (typeof workouts !== 'undefined') {
+                status.textContent = 'Script loaded successfully!';
+                status.style.color = 'green';
+            } else {
+                status.textContent = 'Script failed to load';
+                status.style.color = 'red';
+            }
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
