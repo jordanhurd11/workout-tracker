@@ -8,172 +8,208 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>💪 Workout Progress Tracker</h1>
-            <p class="subtitle">Track your fitness journey</p>
-        </header>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">⚡</div>
+                <span>WorkoutPlanner</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item active">
+                    <span>📊</span>
+                    <span>Dashboard</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <span>📈</span>
+                    <span>Workout Statistics</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <span>🏋️</span>
+                    <span>Workout Plan</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <span>📅</span>
+                    <span>Schedule</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <span>🍽️</span>
+                    <span>Diet Food Menu</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <span>⚙️</span>
+                    <span>Manage Products</span>
+                </li>
+            </ul>
+        </aside>
 
-        <main>
-            <!-- Create Workout Section -->
-            <section class="create-workout-section">
-                <h2>Create a Workout</h2>
-                
-                <!-- Workout Setup Form -->
-                <div id="workoutSetupForm" class="workout-setup-form">
-                    <div class="form-group">
-                        <label for="workoutName">Workout Name</label>
-                        <input 
-                            type="text" 
-                            id="workoutName" 
-                            placeholder="e.g., Push Day, Leg Day, Upper Body"
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="workoutDate">Workout Date</label>
-                        <input 
-                            type="date" 
-                            id="workoutDate" 
-                            required
-                        >
-                    </div>
-
-                    <button type="button" id="startWorkoutBtn" class="btn btn-secondary">Start Workout</button>
+        <!-- Main content area -->
+        <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+            <!-- Top Header -->
+            <header>
+                <h1>Workout</h1>
+                <div class="header-search">
+                    <input type="text" placeholder="Find something new...">
                 </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span style="font-size: 1.2em; cursor: pointer;">🔔</span>
+                    <span style="font-size: 1.2em; cursor: pointer;">👤</span>
+                </div>
+            </header>
 
-                <!-- Exercise Addition Form (appears after workout setup) -->
-                <div id="addExerciseForm" class="add-exercise-form hidden">
-                    <h3>Add Exercise to Workout</h3>
+            <!-- Main Content -->
+            <main>
+                <!-- Create Workout Section -->
+                <section class="create-workout-section">
+                    <h2>Create a Workout</h2>
                     
-                    <div class="form-group">
-                        <label for="exerciseSelect">Exercise</label>
-                        <select id="exerciseSelect" required>
-                            <option value="">Select an exercise...</option>
-                        </select>
+                    <!-- Workout Setup Form -->
+                    <div id="workoutSetupForm" class="workout-setup-form">
+                        <div class="form-group">
+                            <label for="workoutName">Workout Name</label>
+                            <input 
+                                type="text" 
+                                id="workoutName" 
+                                placeholder="e.g., Push Day, Leg Day, Upper Body"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="workoutDate">Workout Date</label>
+                            <input 
+                                type="date" 
+                                id="workoutDate" 
+                                required
+                            >
+                        </div>
+
+                        <button type="button" id="startWorkoutBtn" class="btn btn-secondary">Start Workout</button>
                     </div>
 
-                    <div class="form-group">
-                        <label for="exerciseNumSets">Number of Sets</label>
-                        <input 
-                            type="number" 
-                            id="exerciseNumSets" 
-                            placeholder="4" 
-                            min="1" 
-                            max="20"
-                            required
-                        >
+                    <!-- Exercise Addition Form (appears after workout setup) -->
+                    <div id="addExerciseForm" class="add-exercise-form hidden">
+                        <h3>Add Exercise to Workout</h3>
+                        
+                        <div class="form-group">
+                            <label for="exerciseSelect">Exercise</label>
+                            <select id="exerciseSelect" required>
+                                <option value="">Select an exercise...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="exerciseNumSets">Number of Sets</label>
+                            <input 
+                                type="number" 
+                                id="exerciseNumSets" 
+                                placeholder="4" 
+                                min="1" 
+                                max="20"
+                                required
+                            >
+                        </div>
+
+                        <div id="exerciseSetsContainer" class="exercise-sets-container"></div>
+
+                        <div class="exercise-form-actions">
+                            <button type="button" id="addExerciseBtn" class="btn btn-primary">Add Exercise</button>
+                            <button type="button" id="cancelExerciseBtn" class="btn btn-secondary">Cancel</button>
+                        </div>
                     </div>
 
-                    <div id="exerciseSetsContainer" class="exercise-sets-container"></div>
-
-                    <div class="exercise-form-actions">
-                        <button type="button" id="addExerciseBtn" class="btn btn-primary">Add Exercise</button>
-                        <button type="button" id="cancelExerciseBtn" class="btn btn-secondary">Cancel</button>
+                    <!-- Current Workout Exercises Display -->
+                    <div id="currentWorkoutDisplay" class="current-workout-display hidden">
+                        <h3>Exercises in This Workout</h3>
+                        <div id="currentExercisesList" class="current-exercises-list"></div>
+                        <div class="workout-save-actions">
+                            <button type="button" id="addAnotherExerciseBtn" class="btn btn-secondary">Add Another Exercise</button>
+                            <button type="button" id="saveWorkoutBtn" class="btn btn-success">Save Workout</button>
+                            <button type="button" id="cancelWorkoutBtn" class="btn btn-danger">Cancel Workout</button>
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Current Workout Exercises Display -->
-                <div id="currentWorkoutDisplay" class="current-workout-display hidden">
-                    <h3>Exercises in This Workout</h3>
-                    <div id="currentExercisesList" class="current-exercises-list"></div>
-                    <div class="workout-save-actions">
-                        <button type="button" id="addAnotherExerciseBtn" class="btn btn-secondary">Add Another Exercise</button>
-                        <button type="button" id="saveWorkoutBtn" class="btn btn-success">Save Workout</button>
-                        <button type="button" id="cancelWorkoutBtn" class="btn btn-danger">Cancel Workout</button>
+                <!-- Stats and Filter Section -->
+                <section class="stats-section">
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <h3>Total Workouts</h3>
+                            <p id="totalWorkouts" class="stat-value">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Volume (lbs)</h3>
+                            <p id="totalVolume" class="stat-value">0</p>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- Stats and Filter Section -->
-            <section class="stats-section">
-                <div class="stats-container">
-                    <div class="stat-card">
-                        <h3>Total Workouts</h3>
-                        <p id="totalWorkouts" class="stat-value">0</p>
+                <!-- Workout Progress Section -->
+                <section class="progress-section">
+                    <h2>Workout Progress (Latest by Exercise)</h2>
+                    <div id="workoutProgress" class="progress-container">
+                        <p class="empty-message">No workouts yet. Add one to track your progress!</p>
                     </div>
-                    <div class="stat-card">
-                        <h3>Total Volume (lbs)</h3>
-                        <p id="totalVolume" class="stat-value">0</p>
+                </section>
+
+                <!-- Personal Records Section -->
+                <section class="records-section">
+                    <h2>Personal Records</h2>
+                    <div id="personalRecords" class="records-container">
+                        <p class="empty-message">No workouts yet. Add one to see your personal records!</p>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- Progress Graphs Section -->
-            <section class="graphs-section">
-                <h2>Muscle Group Progress</h2>
-                <div class="radar-container">
-                    <canvas id="radarChart" width="600" height="600"></canvas>
-                    <div id="muscleGroupStats" class="muscle-group-stats"></div>
-                </div>
-            </section>
-
-            <!-- Workout Progress Section -->
-            <section class="progress-section">
-                <h2>Workout Progress (Latest by Exercise)</h2>
-                <div id="workoutProgress" class="progress-container">
-                    <p class="empty-message">No workouts yet. Add one to track your progress!</p>
-                </div>
-            </section>
-
-            <!-- Personal Records Section -->
-            <section class="records-section">
-                <h2>Personal Records</h2>
-                <div id="personalRecords" class="records-container">
-                    <p class="empty-message">No workouts yet. Add one to see your personal records!</p>
-                </div>
-            </section>
-
-            <!-- Workout History Section -->
-            <section class="history-section">
-                <h2>Workout History</h2>
-                <div class="history-controls">
-                    <button id="clearBtn" class="btn btn-danger">Clear All History</button>
-                </div>
-                <div id="workoutHistory" class="workout-history">
-                    <p class="empty-message">No workouts yet. Add one to get started!</p>
-                </div>
-            </section>
-        </main>
-
-        <!-- Workout Detail Modal -->
-        <div id="workoutDetailModal" class="workout-detail-modal hidden">
-            <div class="workout-detail-content">
-                <div class="workout-detail-header">
-                    <h2 id="workoutDetailTitle">Workout Name</h2>
-                    <button id="closeWorkoutDetailBtn" class="btn btn-close">Close</button>
-                </div>
-                <div class="workout-detail-body">
-                    <p id="workoutDetailDate" class="workout-detail-date"></p>
-                    <div id="workoutDetailExercises" class="workout-detail-exercises">
-                        <!-- Filled by JavaScript -->
+                <!-- Workout History Section -->
+                <section class="history-section">
+                    <h2>Workout History</h2>
+                    <div class="history-controls">
+                        <button id="clearBtn" class="btn btn-danger">Clear All History</button>
                     </div>
-                </div>
-            </div>
+                    <div id="workoutHistory" class="workout-history">
+                        <p class="empty-message">No workouts yet. Add one to get started!</p>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer -->
+            <footer>
+                <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
+            </footer>
         </div>
-
-        <!-- Exercise Detail Modal -->
-        <div id="exerciseDetailModal" class="exercise-detail-modal hidden">
-            <div class="exercise-detail-content">
-                <div class="exercise-detail-header">
-                    <h2 id="exerciseDetailTitle">Exercise Name</h2>
-                    <button id="closeDetailBtn" class="btn btn-close">Close</button>
-                </div>
-                <div class="exercise-detail-body">
-                    <div class="exercise-chart-container">
-                        <canvas id="exerciseProgressChart"></canvas>
-                    </div>
-                    <div id="exerciseWorkoutHistory" class="exercise-workout-history">
-                        <!-- Filled by JavaScript -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <footer>
-            <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
-        </footer>
     </div>
+
+    <!-- Workout Detail Modal -->
+    <div id="workoutDetailModal" class="workout-detail-modal hidden">
+        <div class="workout-detail-content">
+            <div class="workout-detail-header">
+                <h2 id="workoutDetailTitle">Workout Name</h2>
+                <button id="closeWorkoutDetailBtn" class="btn btn-close">Close</button>
+            </div>
+            <div class="workout-detail-body">
+                <p id="workoutDetailDate" class="workout-detail-date"></p>
+                <div id="workoutDetailExercises" class="workout-detail-exercises">
+                    <!-- Filled by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise Detail Modal -->
+    <div id="exerciseDetailModal" class="exercise-detail-modal hidden">
+        <div class="exercise-detail-content">
+            <div class="exercise-detail-header">
+                <h2 id="exerciseDetailTitle">Exercise Name</h2>
+                <button id="closeDetailBtn" class="btn btn-close">Close</button>
+            </div>
+            <div class="exercise-detail-body">
+                <div class="exercise-chart-container">
+                    <canvas id="exerciseProgressChart"></canvas>
+                </div>
+                <div id="exerciseWorkoutHistory" class="exercise-workout-history">
+                    <!-- Filled by JavaScript -->
+                </div>
+            </div>
+        </div>
 
     <script src="script.js"></script>
 </body>

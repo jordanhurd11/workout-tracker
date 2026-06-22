@@ -1114,7 +1114,7 @@ function updateTotalStats() {
 
 function renderStats() {
     updateTotalStats();
-    renderMuscleGroupProgress();
+    // renderMuscleGroupProgress(); // Removed - radar graph section deleted
     renderWorkoutHistory();
     renderExerciseProgress();
 }
