@@ -58,8 +58,51 @@
 
             <!-- Main Content -->
             <main>
-                <!-- Create Workout Section -->
-                <section class="create-workout-section">
+                <!-- Start New Workout Card -->
+                <section class="start-workout-section">
+                    <div class="start-workout-card">
+                        <div class="start-workout-content">
+                            <h3>Ready to Get Stronger?</h3>
+                            <p>Begin a new workout session</p>
+                        </div>
+                        <button type="button" id="startNewWorkoutBtn" class="btn btn-primary btn-large">Start New Workout →</button>
+                    </div>
+                </section>
+
+                <!-- Mini Calendar -->
+                <section class="calendar-section">
+                    <h3>This Month's Activity</h3>
+                    <div id="workoutCalendar" class="workout-calendar"></div>
+                </section>
+
+                <!-- Enhanced Stats Section -->
+                <section class="stats-section">
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <h3>Total Workouts</h3>
+                            <p id="totalWorkouts" class="stat-value">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Volume (lbs)</h3>
+                            <p id="totalVolume" class="stat-value">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Avg Progress</h3>
+                            <p id="totalProgress" class="stat-value">0%</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Overall Progress Chart Section -->
+                <section class="progress-chart-section">
+                    <h2>Overall Progress Over Time</h2>
+                    <div id="progressChartContainer" class="progress-chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Create Workout Section (Hidden by default, shown when needed) -->
+                <section class="create-workout-section hidden" id="createWorkoutSection">
                     <h2>Create a Workout</h2>
                     
                     <!-- Workout Setup Form -->
@@ -125,20 +168,6 @@
                             <button type="button" id="addAnotherExerciseBtn" class="btn btn-secondary">Add Another Exercise</button>
                             <button type="button" id="saveWorkoutBtn" class="btn btn-success">Save Workout</button>
                             <button type="button" id="cancelWorkoutBtn" class="btn btn-danger">Cancel Workout</button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Stats and Filter Section -->
-                <section class="stats-section">
-                    <div class="stats-container">
-                        <div class="stat-card">
-                            <h3>Total Workouts</h3>
-                            <p id="totalWorkouts" class="stat-value">0</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Total Volume (lbs)</h3>
-                            <p id="totalVolume" class="stat-value">0</p>
                         </div>
                     </div>
                 </section>
@@ -210,6 +239,34 @@
                 </div>
             </div>
         </div>
+
+    <!-- Workout Layout Selection Modal -->
+    <div id="workoutLayoutModal" class="workout-layout-modal hidden">
+        <div class="modal-overlay" id="layoutModalOverlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Start a Workout</h2>
+                <button class="btn btn-close" id="closeLayoutModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="layout-options">
+                    <div class="layout-option">
+                        <h3>Use a Past Workout Template</h3>
+                        <p>Quickly start with a layout you've used before</p>
+                        <div id="pastWorkoutsList" class="past-workouts-list">
+                            <p class="empty-message">No past workouts available yet</p>
+                        </div>
+                    </div>
+                    <div class="layout-divider">OR</div>
+                    <div class="layout-option">
+                        <h3>Create a New Workout</h3>
+                        <p>Build a custom workout from scratch</p>
+                        <button type="button" id="createNewWorkoutBtn" class="btn btn-primary">Create New</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

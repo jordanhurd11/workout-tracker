@@ -113,6 +113,17 @@ const exerciseDetailTitle = document.getElementById('exerciseDetailTitle');
 const exerciseProgressChart = document.getElementById('exerciseProgressChart');
 const exerciseWorkoutHistory = document.getElementById('exerciseWorkoutHistory');
 
+// New Dashboard Features
+const startNewWorkoutBtn = document.getElementById('startNewWorkoutBtn');
+const workoutLayoutModal = document.getElementById('workoutLayoutModal');
+const closeLayoutModalBtn = document.getElementById('closeLayoutModalBtn');
+const createNewWorkoutBtn = document.getElementById('createNewWorkoutBtn');
+const layoutModalOverlay = document.getElementById('layoutModalOverlay');
+const workoutCalendar = document.getElementById('workoutCalendar');
+const totalProgressDisplay = document.getElementById('totalProgress');
+const progressChartContainer = document.getElementById('progressChart');
+const createWorkoutSection = document.getElementById('createWorkoutSection');
+
 // ========================================
 // 3. STATE
 // ========================================
@@ -197,6 +208,20 @@ function setupEventListeners() {
     
     // History
     clearBtn.addEventListener('click', resetAllData);
+
+    // New Dashboard Features - only add listeners if elements exist
+    if (startNewWorkoutBtn) {
+        startNewWorkoutBtn.addEventListener('click', () => showWorkoutLayoutModal());
+    }
+    if (closeLayoutModalBtn) {
+        closeLayoutModalBtn.addEventListener('click', () => closeWorkoutLayoutModal());
+    }
+    if (layoutModalOverlay) {
+        layoutModalOverlay.addEventListener('click', () => closeWorkoutLayoutModal());
+    }
+    if (createNewWorkoutBtn) {
+        createNewWorkoutBtn.addEventListener('click', () => startNewWorkoutFromModal());
+    }
 }
 
 // ========================================
@@ -742,6 +767,8 @@ function drawMuscleGroupRadarChart() {
 // ========================================
 
 function renderMuscleGroupProgress() {
+    if (!muscleGroupStatsContainer) return; // Container doesn't exist
+    
     const muscleGroups = getMuscleGroupStats(workouts);
     muscleGroupStatsContainer.innerHTML = '';
 
@@ -1114,9 +1141,11 @@ function updateTotalStats() {
 
 function renderStats() {
     updateTotalStats();
-    // renderMuscleGroupProgress(); // Removed - radar graph section deleted
+    renderMuscleGroupProgress();
     renderWorkoutHistory();
     renderExerciseProgress();
+    renderWorkoutCalendar();
+    renderOverallProgressChart();
 }
 
 // ========================================
@@ -1189,6 +1218,360 @@ function saveToLocalStorage() {
     } catch (error) {
         console.error('Error saving data:', error);
     }
+}
+
+// ========================================
+// 27. NEW DASHBOARD FEATURES
+// ========================================
+
+// ========================================
+// 27A. SHOW WORKOUT LAYOUT MODAL
+// ========================================
+
+function showWorkoutLayoutModal() {
+    renderPastWorkoutsInModal();
+    workoutLayoutModal.classList.remove('hidden');
+}
+
+function closeWorkoutLayoutModal() {
+    workoutLayoutModal.classList.add('hidden');
+}
+
+function startNewWorkoutFromModal() {
+    closeWorkoutLayoutModal();
+    createWorkoutSection.classList.remove('hidden');
+    document.getElementById('workoutSetupForm').classList.remove('hidden');
+    workoutNameInput.focus();
+}
+
+function renderPastWorkoutsInModal() {
+    const pastWorkoutsList = document.getElementById('pastWorkoutsList');
+    pastWorkoutsList.innerHTML = '';
+
+    if (workouts.length === 0) {
+        pastWorkoutsList.innerHTML = '<p class="empty-message">No past workouts available yet</p>';
+        return;
+    }
+
+    // Get unique workout names (templates)
+    const workoutNames = [...new Set(workouts.map(w => w.name))];
+    
+    workoutNames.forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'past-workout-item';
+        
+        const lastWorkout = workouts.find(w => w.name === name);
+        const exerciseNames = lastWorkout.exercises.map(e => e.exercise).slice(0, 3).join(', ');
+        const moreExercises = lastWorkout.exercises.length > 3 ? ` +${lastWorkout.exercises.length - 3} more` : '';
+        
+        item.innerHTML = `
+            <div>
+                <div class="past-workout-item-name">${name}</div>
+                <div class="past-workout-item-exercises">${exerciseNames}${moreExercises}</div>
+            </div>
+        `;
+        
+        item.addEventListener('click', () => useWorkoutTemplate(name));
+        pastWorkoutsList.appendChild(item);
+    });
+}
+
+function useWorkoutTemplate(workoutName) {
+    const template = workouts.find(w => w.name === workoutName);
+    if (!template) return;
+
+    // Close modal
+    closeWorkoutLayoutModal();
+
+    // Set the workout name
+    workoutNameInput.value = workoutName;
+    setDefaultDate();
+
+    // Start the workout
+    startNewWorkout();
+
+    // Populate exercises from template
+    template.exercises.forEach((exercise, index) => {
+        setTimeout(() => {
+            exerciseSelect.value = exercise.exercise;
+            exerciseNumSetsInput.value = exercise.sets.length;
+            generateExerciseSetInputs(exercise.sets.length);
+
+            // Fill in the set values
+            setTimeout(() => {
+                exercise.sets.forEach((set, i) => {
+                    document.getElementById(`ex-weight-${i + 1}`).value = set.weight;
+                    document.getElementById(`ex-reps-${i + 1}`).value = set.reps;
+                });
+
+                // Add the exercise
+                if (index === template.exercises.length - 1) {
+                    addExerciseToCurrentWorkout();
+                } else {
+                    addExerciseToCurrentWorkout();
+                }
+            }, 50);
+        }, 50 * (index + 1));
+    });
+}
+
+// ========================================
+// 27B. RENDER WORKOUT CALENDAR
+// ========================================
+
+function renderWorkoutCalendar() {
+    workoutCalendar.innerHTML = '';
+
+    if (!workoutCalendar) return;
+
+    // Get current month
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    // Get first day and number of days in month
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    // Collect workout dates
+    const workoutDates = new Set();
+    workouts.forEach(workout => {
+        const date = new Date(workout.date);
+        if (date.getFullYear() === year && date.getMonth() === month) {
+            workoutDates.add(date.getDate());
+        }
+    });
+
+    // Get today's date
+    const today = new Date();
+    const todayDate = today.getDate();
+
+    // Add previous month days
+    for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        const dayEl = createCalendarDayElement(day, 'future');
+        workoutCalendar.appendChild(dayEl);
+    }
+
+    // Add current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+        let status = 'future';
+        
+        if (day < todayDate) {
+            status = workoutDates.has(day) ? 'worked-out' : 'no-workout';
+        } else if (day === todayDate) {
+            status = workoutDates.has(day) ? 'worked-out' : 'no-workout';
+        } else {
+            status = 'future';
+        }
+
+        const dayEl = createCalendarDayElement(day, status);
+        workoutCalendar.appendChild(dayEl);
+    }
+
+    // Add next month days
+    const totalCells = workoutCalendar.children.length;
+    const remainingCells = 42 - totalCells; // 6 rows × 7 days
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayEl = createCalendarDayElement(day, 'future');
+        workoutCalendar.appendChild(dayEl);
+    }
+}
+
+function createCalendarDayElement(day, status) {
+    const dayEl = document.createElement('div');
+    dayEl.className = `calendar-day ${status}`;
+    dayEl.innerHTML = `<span class="calendar-day-number">${day}</span>`;
+    return dayEl;
+}
+
+// ========================================
+// 27C. CALCULATE TOTAL PROGRESS PERCENTAGE
+// ========================================
+
+function calculateTotalProgressPercentage() {
+    const allEntries = getAllExerciseEntries(workouts);
+    
+    if (allEntries.length === 0) return 0;
+
+    // Group by exercise
+    const exerciseHistory = {};
+    allEntries.forEach(entry => {
+        if (!exerciseHistory[entry.exercise]) {
+            exerciseHistory[entry.exercise] = [];
+        }
+        exerciseHistory[entry.exercise].push({
+            date: new Date(entry.workoutDate),
+            weight: entry.highestWeight
+        });
+    });
+
+    // Sort each exercise's history by date
+    Object.keys(exerciseHistory).forEach(ex => {
+        exerciseHistory[ex].sort((a, b) => a.date - b.date);
+    });
+
+    // Calculate percent changes for each exercise
+    const progressChanges = [];
+    Object.keys(exerciseHistory).forEach(exercise => {
+        const history = exerciseHistory[exercise];
+        if (history.length >= 2) {
+            const firstWeight = history[0].weight;
+            const latestWeight = history[history.length - 1].weight;
+            const percentChange = ((latestWeight - firstWeight) / firstWeight) * 100;
+            progressChanges.push(percentChange);
+        }
+    });
+
+    // Calculate average percent change
+    if (progressChanges.length === 0) return 0;
+    return progressChanges.reduce((sum, change) => sum + change, 0) / progressChanges.length;
+}
+
+// ========================================
+// 27D. RENDER OVERALL PROGRESS CHART
+// ========================================
+
+function renderOverallProgressChart() {
+    if (!progressChartContainer) return;
+
+    const allEntries = getAllExerciseEntries(workouts);
+    
+    if (allEntries.length < 2) {
+        progressChartContainer.innerHTML = '<div class="progress-chart-empty">Add more workouts to see progress over time</div>';
+        return;
+    }
+
+    // Group by date
+    const dataByDate = {};
+    allEntries.forEach(entry => {
+        const date = entry.workoutDate;
+        if (!dataByDate[date]) {
+            dataByDate[date] = 0;
+        }
+        dataByDate[date] += entry.highestWeight;
+    });
+
+    // Sort by date
+    const sortedDates = Object.keys(dataByDate).sort();
+    const dates = sortedDates.slice(-20); // Last 20 dates
+    const volumes = dates.map(date => dataByDate[date]);
+
+    drawProgressChart(dates, volumes);
+
+    // Update total progress stat
+    const totalProgress = calculateTotalProgressPercentage();
+    if (totalProgressDisplay) {
+        totalProgressDisplay.textContent = totalProgress.toFixed(1) + '%';
+    }
+}
+
+function drawProgressChart(dates, volumes) {
+    const canvas = document.getElementById('progressChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Calculate dimensions
+    const padding = 40;
+    const chartWidth = width - (padding * 2);
+    const chartHeight = height - (padding * 2);
+
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, width, height);
+
+    if (volumes.length === 0) return;
+
+    // Get data range
+    const maxVolume = Math.max(...volumes);
+    const minVolume = Math.min(...volumes);
+    const volumeRange = maxVolume - minVolume || maxVolume;
+
+    // Draw grid
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i <= 4; i++) {
+        const y = padding + (chartHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(width - padding, y);
+        ctx.stroke();
+
+        // Y-axis labels
+        const volume = maxVolume - (volumeRange / 4) * i;
+        ctx.fillStyle = '#999';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.round(volume), padding - 10, y + 4);
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+
+    // Draw data line
+    ctx.strokeStyle = '#0047AB';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    volumes.forEach((volume, i) => {
+        const x = padding + (chartWidth / (volumes.length - 1)) * i;
+        const y = height - padding - ((volume - minVolume) / volumeRange) * chartHeight;
+
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    });
+    ctx.stroke();
+
+    // Draw data points
+    ctx.fillStyle = '#0047AB';
+    volumes.forEach((volume, i) => {
+        const x = padding + (chartWidth / (volumes.length - 1)) * i;
+        const y = height - padding - ((volume - minVolume) / volumeRange) * chartHeight;
+
+        // Glow
+        ctx.fillStyle = 'rgba(0, 71, 171, 0.1)';
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Point
+        ctx.fillStyle = '#0047AB';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Draw X-axis labels (dates)
+    ctx.fillStyle = '#666';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'center';
+    const labelInterval = Math.ceil(dates.length / 6);
+    
+    dates.forEach((dateStr, i) => {
+        if (i % labelInterval === 0 || i === dates.length - 1) {
+            const x = padding + (chartWidth / (volumes.length - 1)) * i;
+            const dateObj = new Date(dateStr);
+            const label = (dateObj.getMonth() + 1) + '/' + dateObj.getDate();
+            ctx.fillText(label, x, height - padding + 20);
+        }
+    });
 }
 
 console.log('Workout Tracker initialized successfully!');
