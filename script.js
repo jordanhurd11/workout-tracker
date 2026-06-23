@@ -137,6 +137,8 @@ let currentWorkout = {
 };
 let templateQueue = [];
 
+const currentPage = document.body.getAttribute('data-page') || 'dashboard';
+
 const STORAGE_KEY = 'workoutTrackerData';
 
 // ========================================
@@ -144,12 +146,21 @@ const STORAGE_KEY = 'workoutTrackerData';
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    populateExerciseDropdown();
-    setDefaultDate();
     loadFromLocalStorage();
-    setupEventListeners();
-    setupPageNavigation();
-    renderStats();
+
+    if (currentPage === 'dashboard') {
+        populateExerciseDropdown();
+        setDefaultDate();
+        setupEventListeners();
+        updateTotalStats();
+        renderWorkoutHistory();
+        renderWorkoutCalendar();
+        renderProgressChart();
+    } else if (currentPage === 'statistics') {
+        renderMuscleGroupProgress();
+    } else if (currentPage === 'achievements') {
+        renderPersonalRecords();
+    }
 });
 
 // ========================================
@@ -188,74 +199,31 @@ function setDefaultDate() {
 // ========================================
 
 // ========================================
-// 6B. PAGE NAVIGATION
+// 6B. EVENT LISTENERS (null-safe)
 // ========================================
 
-function setupPageNavigation() {
-    document.querySelectorAll('.sidebar-menu-item[data-page]').forEach(item => {
-        item.addEventListener('click', () => switchPage(item.dataset.page));
-    });
-}
-
-function switchPage(pageName) {
-    document.querySelectorAll('.sidebar-menu-item').forEach(i => i.classList.remove('active'));
-    const navItem = document.querySelector(`.sidebar-menu-item[data-page="${pageName}"]`);
-    if (navItem) navItem.classList.add('active');
-
-    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-    const page = document.getElementById(`page-${pageName}`);
-    if (page) page.classList.remove('hidden');
-
-    const titles = {
-        dashboard: 'Dashboard',
-        statistics: 'Workout Statistics',
-        calendar: 'Calendar',
-        achievements: 'Achievements'
-    };
-    const titleEl = document.getElementById('pageTitle');
-    if (titleEl) titleEl.textContent = titles[pageName] || pageName;
-
-    if (pageName === 'statistics') renderMuscleGroupProgress();
-    if (pageName === 'achievements') renderPersonalRecords();
-}
-
 function setupEventListeners() {
-    // Workout creation workflow
-    startWorkoutBtn.addEventListener('click', startNewWorkout);
-    addExerciseBtn.addEventListener('click', addExerciseToCurrentWorkout);
-    cancelExerciseBtn.addEventListener('click', cancelAddingExercise);
-    addAnotherExerciseBtn.addEventListener('click', showAddExerciseForm);
-    saveWorkoutBtn.addEventListener('click', saveCurrentWorkout);
-    cancelWorkoutBtn.addEventListener('click', cancelCurrentWorkout);
+    if (startWorkoutBtn) startWorkoutBtn.addEventListener('click', startNewWorkout);
+    if (addExerciseBtn) addExerciseBtn.addEventListener('click', addExerciseToCurrentWorkout);
+    if (cancelExerciseBtn) cancelExerciseBtn.addEventListener('click', cancelAddingExercise);
+    if (addAnotherExerciseBtn) addAnotherExerciseBtn.addEventListener('click', showAddExerciseForm);
+    if (saveWorkoutBtn) saveWorkoutBtn.addEventListener('click', saveCurrentWorkout);
+    if (cancelWorkoutBtn) cancelWorkoutBtn.addEventListener('click', cancelCurrentWorkout);
 
-    // Exercise set input generation
-    exerciseNumSetsInput.addEventListener('change', () => {
-        const numSets = parseInt(exerciseNumSetsInput.value);
-        if (numSets > 0) {
-            generateExerciseSetInputs(numSets);
-        }
-    });
+    if (exerciseNumSetsInput) {
+        exerciseNumSetsInput.addEventListener('change', () => {
+            const numSets = parseInt(exerciseNumSetsInput.value);
+            if (numSets > 0) generateExerciseSetInputs(numSets);
+        });
+    }
 
-    // Modals
-    closeDetailBtn.addEventListener('click', closeExerciseDetail);
-    closeWorkoutDetailBtn.addEventListener('click', closeWorkoutDetail);
-    
-    // History
-    clearBtn.addEventListener('click', resetAllData);
-
-    // New Dashboard Features - only add listeners if elements exist
-    if (startNewWorkoutBtn) {
-        startNewWorkoutBtn.addEventListener('click', () => showWorkoutLayoutModal());
-    }
-    if (closeLayoutModalBtn) {
-        closeLayoutModalBtn.addEventListener('click', () => closeWorkoutLayoutModal());
-    }
-    if (layoutModalOverlay) {
-        layoutModalOverlay.addEventListener('click', () => closeWorkoutLayoutModal());
-    }
-    if (createNewWorkoutBtn) {
-        createNewWorkoutBtn.addEventListener('click', () => startNewWorkoutFromModal());
-    }
+    if (closeDetailBtn) closeDetailBtn.addEventListener('click', closeExerciseDetail);
+    if (closeWorkoutDetailBtn) closeWorkoutDetailBtn.addEventListener('click', closeWorkoutDetail);
+    if (clearBtn) clearBtn.addEventListener('click', resetAllData);
+    if (startNewWorkoutBtn) startNewWorkoutBtn.addEventListener('click', () => showWorkoutLayoutModal());
+    if (closeLayoutModalBtn) closeLayoutModalBtn.addEventListener('click', () => closeWorkoutLayoutModal());
+    if (layoutModalOverlay) layoutModalOverlay.addEventListener('click', () => closeWorkoutLayoutModal());
+    if (createNewWorkoutBtn) createNewWorkoutBtn.addEventListener('click', () => startNewWorkoutFromModal());
 }
 
 // ========================================
@@ -1183,10 +1151,20 @@ function calculateWorkoutVolume(workout) {
 // ========================================
 
 function updateTotalStats() {
-    totalWorkoutsDisplay.textContent = workouts.length;
+    if (totalWorkoutsDisplay) totalWorkoutsDisplay.textContent = workouts.length;
 
-    const totalVolume = workouts.reduce((sum, workout) => sum + calculateWorkoutVolume(workout), 0);
-    totalVolumeDisplay.textContent = totalVolume.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    const daysLabel = document.getElementById('workoutDaysLabel');
+    if (daysLabel) {
+        if (workouts.length > 0) {
+            const dates = workouts.map(w => new Date(w.date));
+            const firstDate = new Date(Math.min(...dates));
+            const today = new Date();
+            const days = Math.round((today - firstDate) / (1000 * 60 * 60 * 24)) + 1;
+            daysLabel.textContent = `over ${days} day${days !== 1 ? 's' : ''}`;
+        } else {
+            daysLabel.textContent = '';
+        }
+    }
 
     const totalProgress = calculateTotalProgressPercentage();
     if (totalProgressDisplay) {
@@ -1202,13 +1180,8 @@ function updateTotalStats() {
 function renderStats() {
     updateTotalStats();
     renderWorkoutHistory();
-    renderExerciseProgress();
     renderWorkoutCalendar();
-    renderOverallProgressChart();
-    // Page-specific renders — only called when navigating to those pages,
-    // but also refresh here so data stays current after saves/deletes
-    renderMuscleGroupProgress();
-    renderPersonalRecords();
+    renderProgressChart();
 }
 
 // ========================================
@@ -1475,41 +1448,7 @@ function calculateTotalProgressPercentage() {
 // 27D. RENDER OVERALL PROGRESS CHART
 // ========================================
 
-function renderOverallProgressChart() {
-    if (!progressChartContainer) return;
-
-    const allEntries = getAllExerciseEntries(workouts);
-    
-    if (allEntries.length < 2) {
-        progressChartContainer.innerHTML = '<div class="progress-chart-empty">Add more workouts to see progress over time</div>';
-        return;
-    }
-
-    // Group by date
-    const dataByDate = {};
-    allEntries.forEach(entry => {
-        const date = entry.workoutDate;
-        if (!dataByDate[date]) {
-            dataByDate[date] = 0;
-        }
-        dataByDate[date] += entry.highestWeight;
-    });
-
-    // Sort by date
-    const sortedDates = Object.keys(dataByDate).sort();
-    const dates = sortedDates.slice(-20); // Last 20 dates
-    const volumes = dates.map(date => dataByDate[date]);
-
-    drawProgressChart(dates, volumes);
-
-    // Update total progress stat
-    const totalProgress = calculateTotalProgressPercentage();
-    if (totalProgressDisplay) {
-        totalProgressDisplay.textContent = totalProgress.toFixed(1) + '%';
-    }
-}
-
-function drawProgressChart(dates, volumes) {
+function renderProgressChart() {
     const canvas = document.getElementById('progressChart');
     if (!canvas) return;
 
@@ -1517,101 +1456,130 @@ function drawProgressChart(dates, volumes) {
     const width = canvas.width;
     const height = canvas.height;
 
-    // Calculate dimensions
-    const padding = 40;
-    const chartWidth = width - (padding * 2);
-    const chartHeight = height - (padding * 2);
-
-    // Clear canvas
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
 
-    if (volumes.length === 0) return;
+    const allEntries = getAllExerciseEntries(workouts);
+    const uniqueDates = [...new Set(allEntries.map(e => e.workoutDate))].sort();
 
-    // Get data range
-    const maxVolume = Math.max(...volumes);
-    const minVolume = Math.min(...volumes);
-    const volumeRange = maxVolume - minVolume || maxVolume;
-
-    // Draw grid
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i <= 4; i++) {
-        const y = padding + (chartHeight / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(padding, y);
-        ctx.lineTo(width - padding, y);
-        ctx.stroke();
-
-        // Y-axis labels
-        const volume = maxVolume - (volumeRange / 4) * i;
+    if (uniqueDates.length < 2) {
         ctx.fillStyle = '#999';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'right';
-        ctx.fillText(Math.round(volume), padding - 10, y + 4);
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Add at least 2 workout dates to see progress over time', width / 2, height / 2);
+        return;
     }
 
-    // Draw axes
+    // Calculate cumulative total percent change at each date point
+    const percentages = uniqueDates.map(date => {
+        const entriesUpTo = allEntries.filter(e => e.workoutDate <= date);
+        const byExercise = {};
+        entriesUpTo.forEach(e => {
+            if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
+            byExercise[e.exercise].push({ date: new Date(e.workoutDate), best1RM: e.best1RM });
+        });
+        Object.values(byExercise).forEach(h => h.sort((a, b) => a.date - b.date));
+
+        let total = 0;
+        Object.values(byExercise).forEach(history => {
+            if (history.length >= 2) {
+                const first = history[0].best1RM;
+                const latest = history[history.length - 1].best1RM;
+                if (first > 0) total += ((latest - first) / first) * 100;
+            }
+        });
+        return total;
+    });
+
+    // Chart dimensions
+    const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+    const cw = width - pad.left - pad.right;
+    const ch = height - pad.top - pad.bottom;
+
+    const maxP = Math.max(...percentages, 0);
+    const minP = Math.min(...percentages, 0);
+    const range = (maxP - minP) || 10;
+    const pMax = maxP + range * 0.12;
+    const pMin = minP - range * 0.12;
+    const pRange = pMax - pMin;
+
+    const getX = i => pad.left + (cw / (uniqueDates.length - 1)) * i;
+    const getY = p => pad.top + ((pMax - p) / pRange) * ch;
+
+    // Grid lines + Y labels
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (ch / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+        const val = pMax - (pRange / 4) * i;
+        ctx.fillStyle = '#999';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText((val >= 0 ? '+' : '') + val.toFixed(1) + '%', pad.left - 6, y + 4);
+    }
+
+    // Zero line (dashed) if range crosses zero
+    if (pMin < 0 && pMax > 0) {
+        const zy = getY(0);
+        ctx.save();
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, zy);
+        ctx.lineTo(width - pad.right, zy);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Axes
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding);
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, height - pad.bottom);
+    ctx.lineTo(width - pad.right, height - pad.bottom);
     ctx.stroke();
 
-    // Draw data line
+    // Data line
     ctx.strokeStyle = '#0047AB';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-
-    volumes.forEach((volume, i) => {
-        const x = padding + (chartWidth / (volumes.length - 1)) * i;
-        const y = height - padding - ((volume - minVolume) / volumeRange) * chartHeight;
-
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
+    percentages.forEach((p, i) => {
+        i === 0 ? ctx.moveTo(getX(i), getY(p)) : ctx.lineTo(getX(i), getY(p));
     });
     ctx.stroke();
 
-    // Draw data points
-    ctx.fillStyle = '#0047AB';
-    volumes.forEach((volume, i) => {
-        const x = padding + (chartWidth / (volumes.length - 1)) * i;
-        const y = height - padding - ((volume - minVolume) / volumeRange) * chartHeight;
+    // Data points + X labels
+    const labelEvery = Math.ceil(uniqueDates.length / 6);
+    percentages.forEach((p, i) => {
+        const x = getX(i);
+        const y = getY(p);
+        const color = p >= 0 ? '#22c55e' : '#ef4444';
 
-        // Glow
-        ctx.fillStyle = 'rgba(0, 71, 171, 0.1)';
+        ctx.fillStyle = 'rgba(0,71,171,0.08)';
         ctx.beginPath();
-        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
         ctx.fill();
 
-        // Point
-        ctx.fillStyle = '#0047AB';
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
         ctx.fill();
-    });
 
-    // Draw X-axis labels (dates)
-    ctx.fillStyle = '#666';
-    ctx.font = '11px Arial';
-    ctx.textAlign = 'center';
-    const labelInterval = Math.ceil(dates.length / 6);
-    
-    dates.forEach((dateStr, i) => {
-        if (i % labelInterval === 0 || i === dates.length - 1) {
-            const x = padding + (chartWidth / (volumes.length - 1)) * i;
-            const dateObj = new Date(dateStr);
-            const label = (dateObj.getMonth() + 1) + '/' + dateObj.getDate();
-            ctx.fillText(label, x, height - padding + 20);
+        if (i % labelEvery === 0 || i === uniqueDates.length - 1) {
+            const d = new Date(uniqueDates[i]);
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText((d.getMonth() + 1) + '/' + d.getDate(), x, height - pad.bottom + 18);
         }
     });
 }

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Statistics — WorkoutPlanner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="statistics">
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">⚡</div>
+                <span>WorkoutPlanner</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item" onclick="location.href='index.html'">
+                    <span>📊</span><span>Dashboard</span>
+                </li>
+                <li class="sidebar-menu-item active" onclick="location.href='statistics.html'">
+                    <span>📈</span><span>Workout Statistics</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='calendar.html'">
+                    <span>📅</span><span>Calendar</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='achievements.html'">
+                    <span>🏆</span><span>Achievements</span>
+                </li>
+            </ul>
+        </aside>
+
+        <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+            <header>
+                <h1>Workout Statistics</h1>
+                <div class="header-search">
+                    <input type="text" placeholder="Find something new...">
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span style="font-size: 1.2em; cursor: pointer;">🔔</span>
+                    <span style="font-size: 1.2em; cursor: pointer;">👤</span>
+                </div>
+            </header>
+
+            <main>
+                <section class="stats-page-section">
+                    <h2>Percent Increase by Muscle Group</h2>
+                    <p class="section-description">Total percent increase per muscle group using Epley estimated 1RM — comparing first vs. most recent entry per exercise.</p>
+                    <div id="muscleGroupStats" class="muscle-group-stats-container">
+                        <p class="empty-message">No workouts yet. Add workouts to see statistics!</p>
+                    </div>
+                </section>
+            </main>
+
+            <footer>
+                <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
+            </footer>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

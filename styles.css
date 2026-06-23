@@ -1906,3 +1906,16 @@ select:focus {
 .calendar-page-section {
     padding: 20px 0;
 }
+
+/* Stat sublabel (e.g. "over 14 days") */
+.stat-sublabel {
+    font-size: 0.8em;
+    color: var(--text-light);
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+/* Sidebar items are clickable via onclick */
+.sidebar-menu-item {
+    cursor: pointer;
+}

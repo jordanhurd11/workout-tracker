@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar — WorkoutPlanner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="calendar">
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">⚡</div>
+                <span>WorkoutPlanner</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item" onclick="location.href='index.html'">
+                    <span>📊</span><span>Dashboard</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='statistics.html'">
+                    <span>📈</span><span>Workout Statistics</span>
+                </li>
+                <li class="sidebar-menu-item active" onclick="location.href='calendar.html'">
+                    <span>📅</span><span>Calendar</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='achievements.html'">
+                    <span>🏆</span><span>Achievements</span>
+                </li>
+            </ul>
+        </aside>
+
+        <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+            <header>
+                <h1>Calendar</h1>
+                <div class="header-search">
+                    <input type="text" placeholder="Find something new...">
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span style="font-size: 1.2em; cursor: pointer;">🔔</span>
+                    <span style="font-size: 1.2em; cursor: pointer;">👤</span>
+                </div>
+            </header>
+
+            <main>
+                <section class="calendar-page-section">
+                    <h2>Coming Soon</h2>
+                    <p class="section-description">Plan future workouts, track completed days, and schedule sessions — coming in a future update.</p>
+                </section>
+            </main>
+
+            <footer>
+                <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
+            </footer>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
