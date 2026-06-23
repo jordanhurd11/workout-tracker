@@ -1772,3 +1772,137 @@ select:focus {
         gap: 15px;
     }
 }
+
+/* ========================================
+   PAGE NAVIGATION
+   ======================================== */
+
+.page {
+    width: 100%;
+}
+
+.section-description {
+    color: var(--text-light);
+    font-size: 0.9em;
+    margin-bottom: 20px;
+}
+
+/* ========================================
+   WORKOUT STATISTICS PAGE
+   ======================================== */
+
+.stats-page-section {
+    padding: 20px 0;
+}
+
+.muscle-group-stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.muscle-group-total-change {
+    font-size: 1.8em;
+    font-weight: 700;
+    margin: 8px 0 12px;
+}
+
+.muscle-group-total-change.positive { color: #22c55e; }
+.muscle-group-total-change.negative { color: #ef4444; }
+
+.muscle-group-exercises-breakdown {
+    border-top: 1px solid var(--border-light);
+    padding-top: 10px;
+    margin-top: 4px;
+}
+
+.exercise-change-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.85em;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.exercise-change-name {
+    color: var(--text-dark);
+    flex: 1;
+    margin-right: 10px;
+}
+
+.exercise-change-value {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.exercise-change-value.positive { color: #22c55e; }
+.exercise-change-value.negative { color: #ef4444; }
+
+/* ========================================
+   ACHIEVEMENTS PAGE — PERSONAL RECORDS
+   ======================================== */
+
+.pr-muscle-group {
+    margin-bottom: 30px;
+}
+
+.pr-muscle-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--primary-blue);
+    border-bottom: 2px solid var(--primary-blue);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+
+.pr-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.pr-exercise-name {
+    font-weight: 600;
+    font-size: 1em;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pr-label {
+    background: var(--primary-blue);
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+
+.pr-set {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 4px 0;
+}
+
+.pr-estimated {
+    font-size: 0.85em;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+/* ========================================
+   CALENDAR PAGE
+   ======================================== */
+
+.calendar-page-section {
+    padding: 20px 0;
+}

@@ -148,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setDefaultDate();
     loadFromLocalStorage();
     setupEventListeners();
+    setupPageNavigation();
     renderStats();
 });
 
@@ -185,6 +186,38 @@ function setDefaultDate() {
 // ========================================
 // 7. EVENT LISTENERS
 // ========================================
+
+// ========================================
+// 6B. PAGE NAVIGATION
+// ========================================
+
+function setupPageNavigation() {
+    document.querySelectorAll('.sidebar-menu-item[data-page]').forEach(item => {
+        item.addEventListener('click', () => switchPage(item.dataset.page));
+    });
+}
+
+function switchPage(pageName) {
+    document.querySelectorAll('.sidebar-menu-item').forEach(i => i.classList.remove('active'));
+    const navItem = document.querySelector(`.sidebar-menu-item[data-page="${pageName}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    const page = document.getElementById(`page-${pageName}`);
+    if (page) page.classList.remove('hidden');
+
+    const titles = {
+        dashboard: 'Dashboard',
+        statistics: 'Workout Statistics',
+        calendar: 'Calendar',
+        achievements: 'Achievements'
+    };
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl) titleEl.textContent = titles[pageName] || pageName;
+
+    if (pageName === 'statistics') renderMuscleGroupProgress();
+    if (pageName === 'achievements') renderPersonalRecords();
+}
 
 function setupEventListeners() {
     // Workout creation workflow
@@ -421,6 +454,20 @@ function cancelCurrentWorkout() {
 }
 
 // ========================================
+// 8B. EPLEY 1RM FORMULA
+// ========================================
+
+function epley1RM(weight, reps) {
+    if (reps === 1) return weight;
+    return weight * (1 + reps / 30);
+}
+
+function getBest1RM(sets) {
+    if (!sets || sets.length === 0) return 0;
+    return Math.max(...sets.map(set => epley1RM(set.weight, set.reps)));
+}
+
+// ========================================
 // 9. GET ALL EXERCISE ENTRIES
 // ========================================
 
@@ -435,7 +482,8 @@ function getAllExerciseEntries(workoutsArray) {
                 workoutName: workout.name,
                 workoutDate: workout.date,
                 sets: exercise.sets,
-                highestWeight: getHighestWeightFromSets(exercise.sets)
+                highestWeight: getHighestWeightFromSets(exercise.sets),
+                best1RM: getBest1RM(exercise.sets)
             });
         });
     });
@@ -564,70 +612,44 @@ function getMuscleGroupStats(workoutsArray) {
 
 function getMuscleGroupPercentChanges() {
     const allEntries = getAllExerciseEntries(workouts);
-    
-    // Group exercises by muscle group
     const muscleGroupData = {};
-    
+
     allEntries.forEach(entry => {
         const muscle = entry.muscleGroup;
-        if (!muscleGroupData[muscle]) {
-            muscleGroupData[muscle] = [];
-        }
-        muscleGroupData[muscle].push({
-            exercise: entry.exercise,
+        if (!muscleGroupData[muscle]) muscleGroupData[muscle] = {};
+        if (!muscleGroupData[muscle][entry.exercise]) muscleGroupData[muscle][entry.exercise] = [];
+        muscleGroupData[muscle][entry.exercise].push({
             date: new Date(entry.workoutDate),
-            weight: entry.highestWeight
+            best1RM: entry.best1RM
         });
     });
 
-    // Calculate percent change for each muscle group
-    const percentChanges = [];
-    
-    Object.keys(muscleGroupData).forEach(muscleGroup => {
-        const exercisesInGroup = muscleGroupData[muscleGroup];
-        
-        // Group by exercise name
-        const exerciseHistory = {};
-        exercisesInGroup.forEach(entry => {
-            if (!exerciseHistory[entry.exercise]) {
-                exerciseHistory[entry.exercise] = [];
-            }
-            exerciseHistory[entry.exercise].push({
-                date: entry.date,
-                weight: entry.weight
-            });
-        });
-
-        // Sort each exercise's history by date
-        Object.keys(exerciseHistory).forEach(ex => {
-            exerciseHistory[ex].sort((a, b) => a.date - b.date);
-        });
-
-        // Calculate percent changes for each exercise
+    return Object.keys(muscleGroupData).map(muscle => {
+        const exercises = muscleGroupData[muscle];
+        let totalPercentIncrease = 0;
         const exerciseChanges = [];
-        Object.keys(exerciseHistory).forEach(exercise => {
-            const history = exerciseHistory[exercise];
+
+        Object.keys(exercises).forEach(exerciseName => {
+            const history = exercises[exerciseName].sort((a, b) => a.date - b.date);
             if (history.length >= 2) {
-                const previousWeight = history[history.length - 2].weight;
-                const currentWeight = history[history.length - 1].weight;
-                const percentChange = ((currentWeight - previousWeight) / previousWeight) * 100;
-                exerciseChanges.push(percentChange);
+                const first = history[0].best1RM;
+                const latest = history[history.length - 1].best1RM;
+                if (first > 0) {
+                    const pct = ((latest - first) / first) * 100;
+                    totalPercentIncrease += pct;
+                    exerciseChanges.push({ exercise: exerciseName, percentChange: pct });
+                }
             }
         });
 
-        // Calculate average percent change for the muscle group
-        if (exerciseChanges.length > 0) {
-            const avgChange = exerciseChanges.reduce((sum, change) => sum + change, 0) / exerciseChanges.length;
-            percentChanges.push({
-                muscle: muscleGroup,
-                percentChange: avgChange,
-                exerciseCount: exerciseHistory.length,
-                isIncrease: avgChange >= 0
-            });
-        }
-    });
-
-    return percentChanges.sort((a, b) => b.percentChange - a.percentChange);
+        return {
+            muscle,
+            percentChange: totalPercentIncrease,
+            totalPercentIncrease,
+            exerciseChanges,
+            isIncrease: totalPercentIncrease >= 0
+        };
+    }).sort((a, b) => b.totalPercentIncrease - a.totalPercentIncrease);
 }
 
 // ========================================
@@ -775,75 +797,102 @@ function drawMuscleGroupRadarChart() {
 // ========================================
 
 function renderMuscleGroupProgress() {
-    if (!muscleGroupStatsContainer) return; // Container doesn't exist
-    
-    const muscleGroups = getMuscleGroupStats(workouts);
-    muscleGroupStatsContainer.innerHTML = '';
+    const container = document.getElementById('muscleGroupStats');
+    if (!container) return;
 
-    if (muscleGroups.length === 0) {
-        muscleGroupStatsContainer.innerHTML = '<p class="empty-message">No workouts yet. Add one to track muscle group progress!</p>';
-        // Draw empty radar
-        const radarCanvas = document.getElementById('radarChart');
-        if (radarCanvas) {
-            radarCanvas.style.display = 'none';
-        }
+    const muscleChanges = getMuscleGroupPercentChanges();
+    container.innerHTML = '';
+
+    if (muscleChanges.length === 0) {
+        container.innerHTML = '<p class="empty-message">No workouts yet. Add workouts to see statistics!</p>';
         return;
     }
 
-    // Get percent changes for all muscle groups
-    const percentChangesByMuscle = getMuscleGroupPercentChanges();
-    const changeMap = {};
-    percentChangesByMuscle.forEach(change => {
-        changeMap[change.muscle] = change;
-    });
-
-    muscleGroups.forEach(group => {
-        const dateObj = new Date(group.lastWorkoutDate);
-        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        
-        const change = changeMap[group.muscle];
-        const percentChange = change ? change.percentChange : 0;
-        const hasChange = change ? true : false;
-
+    muscleChanges.forEach(group => {
         const card = document.createElement('div');
         card.className = 'muscle-group-card';
-        
+
+        const sign = group.totalPercentIncrease >= 0 ? '+' : '';
+        const changeClass = group.totalPercentIncrease >= 0 ? 'positive' : 'negative';
+
+        const breakdown = group.exerciseChanges.length > 0
+            ? group.exerciseChanges.map(ex => {
+                const exSign = ex.percentChange >= 0 ? '+' : '';
+                return `<div class="exercise-change-row">
+                    <span class="exercise-change-name">${ex.exercise}</span>
+                    <span class="exercise-change-value ${ex.percentChange >= 0 ? 'positive' : 'negative'}">${exSign}${ex.percentChange.toFixed(1)}%</span>
+                </div>`;
+              }).join('')
+            : '<p class="empty-message" style="font-size:0.85em;margin:8px 0 0;">Need 2+ entries per exercise to show data.</p>';
+
         card.innerHTML = `
             <div class="muscle-group-card-name">${group.muscle}</div>
-            <div class="muscle-group-card-stats">
-                <div class="muscle-stat">
-                    <div class="muscle-stat-label">Total Volume</div>
-                    <div class="muscle-stat-value">${group.totalVolume.toLocaleString()} lbs</div>
-                </div>
-                <div class="muscle-stat">
-                    <div class="muscle-stat-label">Max Weight</div>
-                    <div class="muscle-stat-value">${group.maxWeight} lbs</div>
-                </div>
-                <div class="muscle-stat">
-                    <div class="muscle-stat-label">Exercises</div>
-                    <div class="muscle-stat-value">${group.exerciseCount}</div>
-                </div>
-                <div class="muscle-stat">
-                    <div class="muscle-stat-label">Workouts</div>
-                    <div class="muscle-stat-value">${group.workoutCount}</div>
-                </div>
-            </div>
-            <div class="muscle-group-card-changes">
-                <div class="avg-change">
-                    <span class="change-label">% Change:</span>
-                    <span class="change-value ${percentChange >= 0 ? 'positive' : 'negative'}">
-                        ${hasChange ? (percentChange >= 0 ? '+' : '') + percentChange.toFixed(1) + '%' : 'Need 2 workouts'}
-                    </span>
-                </div>
-            </div>
-            <div class="muscle-group-card-date">Last: ${dateStr}</div>
+            <div class="muscle-group-total-change ${changeClass}">${sign}${group.totalPercentIncrease.toFixed(1)}%</div>
+            <div class="muscle-group-exercises-breakdown">${breakdown}</div>
         `;
 
-        muscleGroupStatsContainer.appendChild(card);
+        container.appendChild(card);
+    });
+}
+
+// ========================================
+// 12D. RENDER PERSONAL RECORDS
+// ========================================
+
+function renderPersonalRecords() {
+    const container = document.getElementById('personalRecords');
+    if (!container) return;
+
+    const allEntries = getAllExerciseEntries(workouts);
+
+    if (allEntries.length === 0) {
+        container.innerHTML = '<p class="empty-message">No workouts yet. Add one to see your personal records!</p>';
+        return;
+    }
+
+    // Find best set (by Epley 1RM) for each exercise
+    const prByExercise = {};
+    allEntries.forEach(entry => {
+        entry.sets.forEach(set => {
+            const est1RM = epley1RM(set.weight, set.reps);
+            if (!prByExercise[entry.exercise] || est1RM > prByExercise[entry.exercise].est1RM) {
+                prByExercise[entry.exercise] = {
+                    exercise: entry.exercise,
+                    muscleGroup: entry.muscleGroup,
+                    weight: set.weight,
+                    reps: set.reps,
+                    est1RM: est1RM
+                };
+            }
+        });
     });
 
-    // Draw the main radar chart showing all muscle groups
-    drawMuscleGroupRadarChart();
+    // Group by muscle group
+    const byMuscle = {};
+    Object.values(prByExercise).forEach(pr => {
+        if (!byMuscle[pr.muscleGroup]) byMuscle[pr.muscleGroup] = [];
+        byMuscle[pr.muscleGroup].push(pr);
+    });
+
+    container.innerHTML = '';
+    Object.keys(byMuscle).sort().forEach(muscle => {
+        const section = document.createElement('div');
+        section.className = 'pr-muscle-group';
+        section.innerHTML = `<h3 class="pr-muscle-title">${muscle}</h3>`;
+
+        byMuscle[muscle].sort((a, b) => a.exercise.localeCompare(b.exercise)).forEach(pr => {
+            const card = document.createElement('div');
+            card.className = 'pr-card';
+            card.innerHTML = `
+                <div class="pr-exercise-name">${pr.exercise} <span class="pr-label">PR</span></div>
+                <div class="pr-set">${pr.weight} lbs × ${pr.reps} reps</div>
+                <div class="pr-estimated"><em>Estimated 1RM: ${pr.est1RM.toFixed(1)} lbs</em></div>
+            `;
+            section.appendChild(card);
+        });
+
+        container.appendChild(section);
+    });
 }
 
 // ========================================
@@ -1136,11 +1185,14 @@ function calculateWorkoutVolume(workout) {
 function updateTotalStats() {
     totalWorkoutsDisplay.textContent = workouts.length;
 
-    const totalVolume = workouts.reduce((sum, workout) => {
-        return sum + calculateWorkoutVolume(workout);
-    }, 0);
-
+    const totalVolume = workouts.reduce((sum, workout) => sum + calculateWorkoutVolume(workout), 0);
     totalVolumeDisplay.textContent = totalVolume.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const totalProgress = calculateTotalProgressPercentage();
+    if (totalProgressDisplay) {
+        const sign = totalProgress >= 0 ? '+' : '';
+        totalProgressDisplay.textContent = sign + totalProgress.toFixed(1) + '%';
+    }
 }
 
 // ========================================
@@ -1149,11 +1201,14 @@ function updateTotalStats() {
 
 function renderStats() {
     updateTotalStats();
-    renderMuscleGroupProgress();
     renderWorkoutHistory();
     renderExerciseProgress();
     renderWorkoutCalendar();
     renderOverallProgressChart();
+    // Page-specific renders — only called when navigating to those pages,
+    // but also refresh here so data stays current after saves/deletes
+    renderMuscleGroupProgress();
+    renderPersonalRecords();
 }
 
 // ========================================
@@ -1390,41 +1445,30 @@ function createCalendarDayElement(day, status) {
 
 function calculateTotalProgressPercentage() {
     const allEntries = getAllExerciseEntries(workouts);
-    
     if (allEntries.length === 0) return 0;
 
-    // Group by exercise
     const exerciseHistory = {};
     allEntries.forEach(entry => {
-        if (!exerciseHistory[entry.exercise]) {
-            exerciseHistory[entry.exercise] = [];
-        }
-        exerciseHistory[entry.exercise].push({
-            date: new Date(entry.workoutDate),
-            weight: entry.highestWeight
-        });
+        if (!exerciseHistory[entry.exercise]) exerciseHistory[entry.exercise] = [];
+        exerciseHistory[entry.exercise].push({ date: new Date(entry.workoutDate), best1RM: entry.best1RM });
     });
 
-    // Sort each exercise's history by date
     Object.keys(exerciseHistory).forEach(ex => {
         exerciseHistory[ex].sort((a, b) => a.date - b.date);
     });
 
-    // Calculate percent changes for each exercise
-    const progressChanges = [];
+    // Sum percent increases (first vs most recent) across all exercises
+    let total = 0;
     Object.keys(exerciseHistory).forEach(exercise => {
         const history = exerciseHistory[exercise];
         if (history.length >= 2) {
-            const firstWeight = history[0].weight;
-            const latestWeight = history[history.length - 1].weight;
-            const percentChange = ((latestWeight - firstWeight) / firstWeight) * 100;
-            progressChanges.push(percentChange);
+            const first = history[0].best1RM;
+            const latest = history[history.length - 1].best1RM;
+            if (first > 0) total += ((latest - first) / first) * 100;
         }
     });
 
-    // Calculate average percent change
-    if (progressChanges.length === 0) return 0;
-    return progressChanges.reduce((sum, change) => sum + change, 0) / progressChanges.length;
+    return total;
 }
 
 // ========================================
