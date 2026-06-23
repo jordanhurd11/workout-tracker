@@ -435,6 +435,25 @@ function getBest1RM(sets) {
     return Math.max(...sets.map(set => epley1RM(set.weight, set.reps)));
 }
 
+// For each exercise: find the first-ever workout date, then take the highest
+// Epley 1RM across ALL sets from ALL workouts on that date.
+// Returns { exercise -> { date, best1RM } }
+function buildFirstEverMap(allEntries) {
+    const byExercise = {};
+    allEntries.forEach(e => {
+        if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
+        byExercise[e.exercise].push(e);
+    });
+    const map = {};
+    Object.keys(byExercise).forEach(ex => {
+        const entries = byExercise[ex];
+        const firstDate = entries.reduce((min, e) => e.workoutDate < min ? e.workoutDate : min, entries[0].workoutDate);
+        const best1RM = Math.max(...entries.filter(e => e.workoutDate === firstDate).map(e => e.best1RM));
+        map[ex] = { date: firstDate, best1RM };
+    });
+    return map;
+}
+
 // ========================================
 // 9. GET ALL EXERCISE ENTRIES
 // ========================================
@@ -580,33 +599,30 @@ function getMuscleGroupStats(workoutsArray) {
 
 function getMuscleGroupPercentChanges() {
     const allEntries = getAllExerciseEntries(workouts);
-    const muscleGroupData = {};
+    const firstEver = buildFirstEverMap(allEntries);
 
-    allEntries.forEach(entry => {
-        const muscle = entry.muscleGroup;
-        if (!muscleGroupData[muscle]) muscleGroupData[muscle] = {};
-        if (!muscleGroupData[muscle][entry.exercise]) muscleGroupData[muscle][entry.exercise] = [];
-        muscleGroupData[muscle][entry.exercise].push({
-            date: new Date(entry.workoutDate),
-            best1RM: entry.best1RM
-        });
+    const byMuscleExercise = {};
+    allEntries.forEach(e => {
+        const muscle = e.muscleGroup;
+        if (!byMuscleExercise[muscle]) byMuscleExercise[muscle] = {};
+        if (!byMuscleExercise[muscle][e.exercise]) byMuscleExercise[muscle][e.exercise] = [];
+        byMuscleExercise[muscle][e.exercise].push(e);
     });
 
-    return Object.keys(muscleGroupData).map(muscle => {
-        const exercises = muscleGroupData[muscle];
+    return Object.keys(byMuscleExercise).map(muscle => {
         let totalPercentIncrease = 0;
         const exerciseChanges = [];
 
-        Object.keys(exercises).forEach(exerciseName => {
-            const history = exercises[exerciseName].sort((a, b) => a.date - b.date);
-            if (history.length >= 2) {
-                const first = history[0].best1RM;
-                const latest = history[history.length - 1].best1RM;
-                if (first > 0) {
-                    const pct = ((latest - first) / first) * 100;
-                    totalPercentIncrease += pct;
-                    exerciseChanges.push({ exercise: exerciseName, percentChange: pct });
-                }
+        Object.keys(byMuscleExercise[muscle]).forEach(exercise => {
+            const base = firstEver[exercise];
+            const entries = byMuscleExercise[muscle][exercise].filter(e => e.workoutDate > base.date);
+            if (entries.length === 0) return;
+            const lastDate = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
+            const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
+            if (base.best1RM > 0) {
+                const pct = ((latestBest - base.best1RM) / base.best1RM) * 100;
+                totalPercentIncrease += pct;
+                exerciseChanges.push({ exercise, percentChange: pct });
             }
         });
 
@@ -1420,25 +1436,21 @@ function calculateTotalProgressPercentage() {
     const allEntries = getAllExerciseEntries(workouts);
     if (allEntries.length === 0) return 0;
 
-    const exerciseHistory = {};
-    allEntries.forEach(entry => {
-        if (!exerciseHistory[entry.exercise]) exerciseHistory[entry.exercise] = [];
-        exerciseHistory[entry.exercise].push({ date: new Date(entry.workoutDate), best1RM: entry.best1RM });
+    const firstEver = buildFirstEverMap(allEntries);
+    const byExercise = {};
+    allEntries.forEach(e => {
+        if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
+        byExercise[e.exercise].push(e);
     });
 
-    Object.keys(exerciseHistory).forEach(ex => {
-        exerciseHistory[ex].sort((a, b) => a.date - b.date);
-    });
-
-    // Sum percent increases (first vs most recent) across all exercises
     let total = 0;
-    Object.keys(exerciseHistory).forEach(exercise => {
-        const history = exerciseHistory[exercise];
-        if (history.length >= 2) {
-            const first = history[0].best1RM;
-            const latest = history[history.length - 1].best1RM;
-            if (first > 0) total += ((latest - first) / first) * 100;
-        }
+    Object.keys(firstEver).forEach(exercise => {
+        const base = firstEver[exercise];
+        const entries = byExercise[exercise].filter(e => e.workoutDate > base.date);
+        if (entries.length === 0) return;
+        const lastDate = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
+        const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
+        if (base.best1RM > 0) total += ((latestBest - base.best1RM) / base.best1RM) * 100;
     });
 
     return total;
@@ -1452,7 +1464,6 @@ function renderProgressChart() {
     const canvas = document.getElementById('progressChart');
     if (!canvas) return;
 
-    // Match canvas resolution to its CSS display size
     const container = canvas.parentElement;
     canvas.width = container ? container.clientWidth : 800;
     canvas.height = container ? container.clientHeight : 300;
@@ -1476,31 +1487,26 @@ function renderProgressChart() {
         return;
     }
 
-    // Calculate cumulative total % change at each date
-    const raw = uniqueDates.map(date => {
-        const entriesUpTo = allEntries.filter(e => e.workoutDate <= date);
-        const byExercise = {};
-        entriesUpTo.forEach(e => {
-            if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
-            byExercise[e.exercise].push({ date: new Date(e.workoutDate), best1RM: e.best1RM });
-        });
-        Object.values(byExercise).forEach(h => h.sort((a, b) => a.date - b.date));
+    // Fixed baseline per exercise: best 1RM across all sets on the first-ever date
+    const firstEver = buildFirstEverMap(allEntries);
+
+    // At each date point: sum percent changes (first-ever vs best on most recent date up to here)
+    const percentages = uniqueDates.map(date => {
         let total = 0;
-        Object.values(byExercise).forEach(history => {
-            if (history.length >= 2) {
-                const first = history[0].best1RM;
-                const latest = history[history.length - 1].best1RM;
-                if (first > 0) total += ((latest - first) / first) * 100;
-            }
+        Object.keys(firstEver).forEach(exercise => {
+            const base = firstEver[exercise];
+            // Only include entries strictly after the first date
+            const laterEntries = allEntries.filter(e => e.exercise === exercise && e.workoutDate > base.date && e.workoutDate <= date);
+            if (laterEntries.length === 0) return;
+            const lastDate = laterEntries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, laterEntries[0].workoutDate);
+            const latestBest = Math.max(...laterEntries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
+            if (base.best1RM > 0) total += ((latestBest - base.best1RM) / base.best1RM) * 100;
         });
         return total;
     });
 
-    // Normalize: chart always starts at 0%
-    const baseline = raw[0];
-    const percentages = raw.map(p => p - baseline);
-
-    const pad = { top: 30, right: 30, bottom: 40, left: 58 };
+    // Leave extra bottom padding for rotated date labels
+    const pad = { top: 30, right: 30, bottom: 65, left: 58 };
     const cw = width - pad.left - pad.right;
     const ch = height - pad.top - pad.bottom;
 
@@ -1514,21 +1520,21 @@ function renderProgressChart() {
     const getX = i => pad.left + (cw / Math.max(uniqueDates.length - 1, 1)) * i;
     const getY = p => pad.top + ((pMax - p) / pRange) * ch;
 
-    // Build point list
     const pts = percentages.map((p, i) => ({ x: getX(i), y: getY(p) }));
 
-    // Helper: draw smooth bezier path through pts
     function smoothPath() {
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 0; i < pts.length - 1; i++) {
             const cpx = (pts[i].x + pts[i + 1].x) / 2;
             ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, (pts[i].y + pts[i + 1].y) / 2);
         }
-        ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y,
-            pts[pts.length - 1].x, pts[pts.length - 1].y);
+        ctx.quadraticCurveTo(
+            pts[pts.length - 2].x, pts[pts.length - 2].y,
+            pts[pts.length - 1].x, pts[pts.length - 1].y
+        );
     }
 
-    // Gradient fill under curve
+    // Gradient fill
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
     grad.addColorStop(0, 'rgba(155, 135, 245, 0.50)');
     grad.addColorStop(1, 'rgba(155, 135, 245, 0.00)');
@@ -1542,7 +1548,7 @@ function renderProgressChart() {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Stroke line on top of fill
+    // Stroke line
     ctx.beginPath();
     smoothPath();
     ctx.strokeStyle = '#9b87f5';
@@ -1551,29 +1557,41 @@ function renderProgressChart() {
     ctx.lineJoin = 'round';
     ctx.stroke();
 
-    // Y-axis labels (minimal, light grey)
+    // Y-axis labels
     ctx.fillStyle = '#bbb';
     ctx.font = '11px -apple-system, sans-serif';
     ctx.textAlign = 'right';
-    const ySteps = 4;
-    for (let i = 0; i <= ySteps; i++) {
-        const p = pMax - (pRange / ySteps) * i;
-        const y = pad.top + (ch / ySteps) * i;
-        const label = (p >= 0 ? '+' : '') + p.toFixed(0) + '%';
-        ctx.fillText(label, pad.left - 8, y + 4);
+    for (let i = 0; i <= 4; i++) {
+        const p = pMax - (pRange / 4) * i;
+        const y = pad.top + (ch / 4) * i;
+        ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
     }
 
-    // X-axis month labels
+    // Data points + rotated date labels at every point
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const labelEvery = Math.max(1, Math.ceil(uniqueDates.length / 6));
-    ctx.fillStyle = '#bbb';
-    ctx.font = '11px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    uniqueDates.forEach((date, i) => {
-        if (i % labelEvery === 0 || i === uniqueDates.length - 1) {
-            const d = new Date(date);
-            ctx.fillText(MONTHS[d.getMonth()], getX(i), height - pad.bottom + 18);
-        }
+    pts.forEach((pt, i) => {
+        // Dot
+        ctx.fillStyle = 'rgba(155,135,245,0.2)';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#9b87f5';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rotated date label below X-axis baseline
+        const d = new Date(uniqueDates[i]);
+        const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
+        ctx.save();
+        ctx.translate(pt.x, height - pad.bottom + 8);
+        ctx.rotate(-Math.PI / 4);
+        ctx.fillStyle = '#999';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
     });
 }
 
