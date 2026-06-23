@@ -1452,27 +1452,32 @@ function renderProgressChart() {
     const canvas = document.getElementById('progressChart');
     if (!canvas) return;
 
+    // Match canvas resolution to its CSS display size
+    const container = canvas.parentElement;
+    canvas.width = container ? container.clientWidth : 800;
+    canvas.height = container ? container.clientHeight : 300;
+
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#f8f9fa';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     const allEntries = getAllExerciseEntries(workouts);
     const uniqueDates = [...new Set(allEntries.map(e => e.workoutDate))].sort();
 
     if (uniqueDates.length < 2) {
-        ctx.fillStyle = '#999';
-        ctx.font = '14px Arial';
+        ctx.fillStyle = '#bbb';
+        ctx.font = '14px -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Add at least 2 workout dates to see progress over time', width / 2, height / 2);
         return;
     }
 
-    // Calculate cumulative total percent change at each date point
-    const percentages = uniqueDates.map(date => {
+    // Calculate cumulative total % change at each date
+    const raw = uniqueDates.map(date => {
         const entriesUpTo = allEntries.filter(e => e.workoutDate <= date);
         const byExercise = {};
         entriesUpTo.forEach(e => {
@@ -1480,7 +1485,6 @@ function renderProgressChart() {
             byExercise[e.exercise].push({ date: new Date(e.workoutDate), best1RM: e.best1RM });
         });
         Object.values(byExercise).forEach(h => h.sort((a, b) => a.date - b.date));
-
         let total = 0;
         Object.values(byExercise).forEach(history => {
             if (history.length >= 2) {
@@ -1492,94 +1496,83 @@ function renderProgressChart() {
         return total;
     });
 
-    // Chart dimensions
-    const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+    // Normalize: chart always starts at 0%
+    const baseline = raw[0];
+    const percentages = raw.map(p => p - baseline);
+
+    const pad = { top: 30, right: 30, bottom: 40, left: 58 };
     const cw = width - pad.left - pad.right;
     const ch = height - pad.top - pad.bottom;
 
-    const maxP = Math.max(...percentages, 0);
+    const maxP = Math.max(...percentages, 0.1);
     const minP = Math.min(...percentages, 0);
-    const range = (maxP - minP) || 10;
-    const pMax = maxP + range * 0.12;
-    const pMin = minP - range * 0.12;
+    const buf = (maxP - minP) * 0.18 || 2;
+    const pMax = maxP + buf;
+    const pMin = minP - buf / 2;
     const pRange = pMax - pMin;
 
-    const getX = i => pad.left + (cw / (uniqueDates.length - 1)) * i;
+    const getX = i => pad.left + (cw / Math.max(uniqueDates.length - 1, 1)) * i;
     const getY = p => pad.top + ((pMax - p) / pRange) * ch;
 
-    // Grid lines + Y labels
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-        const y = pad.top + (ch / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(width - pad.right, y);
-        ctx.stroke();
-        const val = pMax - (pRange / 4) * i;
-        ctx.fillStyle = '#999';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'right';
-        ctx.fillText((val >= 0 ? '+' : '') + val.toFixed(1) + '%', pad.left - 6, y + 4);
+    // Build point list
+    const pts = percentages.map((p, i) => ({ x: getX(i), y: getY(p) }));
+
+    // Helper: draw smooth bezier path through pts
+    function smoothPath() {
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < pts.length - 1; i++) {
+            const cpx = (pts[i].x + pts[i + 1].x) / 2;
+            ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, (pts[i].y + pts[i + 1].y) / 2);
+        }
+        ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y,
+            pts[pts.length - 1].x, pts[pts.length - 1].y);
     }
 
-    // Zero line (dashed) if range crosses zero
-    if (pMin < 0 && pMax > 0) {
-        const zy = getY(0);
-        ctx.save();
-        ctx.strokeStyle = '#bbb';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.moveTo(pad.left, zy);
-        ctx.lineTo(width - pad.right, zy);
-        ctx.stroke();
-        ctx.restore();
-    }
+    // Gradient fill under curve
+    const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+    grad.addColorStop(0, 'rgba(155, 135, 245, 0.50)');
+    grad.addColorStop(1, 'rgba(155, 135, 245, 0.00)');
 
-    // Axes
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(pad.left, pad.top);
-    ctx.lineTo(pad.left, height - pad.bottom);
-    ctx.lineTo(width - pad.right, height - pad.bottom);
-    ctx.stroke();
+    ctx.moveTo(pts[0].x, height - pad.bottom);
+    ctx.lineTo(pts[0].x, pts[0].y);
+    smoothPath();
+    ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
 
-    // Data line
-    ctx.strokeStyle = '#0047AB';
-    ctx.lineWidth = 3;
+    // Stroke line on top of fill
+    ctx.beginPath();
+    smoothPath();
+    ctx.strokeStyle = '#9b87f5';
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.beginPath();
-    percentages.forEach((p, i) => {
-        i === 0 ? ctx.moveTo(getX(i), getY(p)) : ctx.lineTo(getX(i), getY(p));
-    });
     ctx.stroke();
 
-    // Data points + X labels
-    const labelEvery = Math.ceil(uniqueDates.length / 6);
-    percentages.forEach((p, i) => {
-        const x = getX(i);
-        const y = getY(p);
-        const color = p >= 0 ? '#22c55e' : '#ef4444';
+    // Y-axis labels (minimal, light grey)
+    ctx.fillStyle = '#bbb';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    const ySteps = 4;
+    for (let i = 0; i <= ySteps; i++) {
+        const p = pMax - (pRange / ySteps) * i;
+        const y = pad.top + (ch / ySteps) * i;
+        const label = (p >= 0 ? '+' : '') + p.toFixed(0) + '%';
+        ctx.fillText(label, pad.left - 8, y + 4);
+    }
 
-        ctx.fillStyle = 'rgba(0,71,171,0.08)';
-        ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-
+    // X-axis month labels
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labelEvery = Math.max(1, Math.ceil(uniqueDates.length / 6));
+    ctx.fillStyle = '#bbb';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    uniqueDates.forEach((date, i) => {
         if (i % labelEvery === 0 || i === uniqueDates.length - 1) {
-            const d = new Date(uniqueDates[i]);
-            ctx.fillStyle = '#666';
-            ctx.font = '11px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText((d.getMonth() + 1) + '/' + d.getDate(), x, height - pad.bottom + 18);
+            const d = new Date(date);
+            ctx.fillText(MONTHS[d.getMonth()], getX(i), height - pad.bottom + 18);
         }
     });
 }
