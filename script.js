@@ -1536,8 +1536,8 @@ function renderProgressChart() {
 
     // Gradient fill
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-    grad.addColorStop(0, 'rgba(155, 135, 245, 0.50)');
-    grad.addColorStop(1, 'rgba(155, 135, 245, 0.00)');
+    grad.addColorStop(0, 'rgba(108, 92, 210, 0.45)');
+    grad.addColorStop(1, 'rgba(108, 92, 210, 0.00)');
 
     ctx.beginPath();
     ctx.moveTo(pts[0].x, height - pad.bottom);
@@ -1548,10 +1548,10 @@ function renderProgressChart() {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Stroke line
+    // Stroke line — single clean curve, no dots
     ctx.beginPath();
     smoothPath();
-    ctx.strokeStyle = '#9b87f5';
+    ctx.strokeStyle = '#6c5cd2';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -1567,21 +1567,9 @@ function renderProgressChart() {
         ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
     }
 
-    // Data points + rotated date labels at every point
+    // Rotated date labels at every point (no dots)
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     pts.forEach((pt, i) => {
-        // Dot
-        ctx.fillStyle = 'rgba(155,135,245,0.2)';
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#9b87f5';
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Rotated date label below X-axis baseline
         const d = new Date(uniqueDates[i]);
         const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
         ctx.save();
