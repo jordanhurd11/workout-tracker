@@ -135,6 +135,7 @@ let currentWorkout = {
     date: "",
     exercises: []
 };
+let templateQueue = [];
 
 const STORAGE_KEY = 'workoutTrackerData';
 
@@ -333,6 +334,12 @@ function addExerciseToCurrentWorkout() {
     // Update display
     addExerciseForm.classList.add('hidden');
     updateCurrentWorkoutDisplay();
+
+    // If working through a template, pre-fill the next exercise automatically
+    if (templateQueue.length > 0) {
+        showAddExerciseForm();
+        prefillNextTemplateExercise();
+    }
 }
 
 function updateCurrentWorkoutDisplay() {
@@ -405,6 +412,7 @@ function saveCurrentWorkout() {
 
 function cancelCurrentWorkout() {
     currentWorkout = { id: null, name: "", date: "", exercises: [] };
+    templateQueue = [];
     document.getElementById('workoutSetupForm').classList.remove('hidden');
     addExerciseForm.classList.add('hidden');
     currentWorkoutDisplay.classList.add('hidden');
@@ -1280,38 +1288,27 @@ function useWorkoutTemplate(workoutName) {
     const template = workouts.find(w => w.name === workoutName);
     if (!template) return;
 
-    // Close modal
     closeWorkoutLayoutModal();
-
-    // Set the workout name
     workoutNameInput.value = workoutName;
     setDefaultDate();
-
-    // Start the workout
     startNewWorkout();
 
-    // Populate exercises from template
-    template.exercises.forEach((exercise, index) => {
-        setTimeout(() => {
-            exerciseSelect.value = exercise.exercise;
-            exerciseNumSetsInput.value = exercise.sets.length;
-            generateExerciseSetInputs(exercise.sets.length);
+    // Queue all template exercises so the user can review/edit each one
+    templateQueue = [...template.exercises];
+    prefillNextTemplateExercise();
+}
 
-            // Fill in the set values
-            setTimeout(() => {
-                exercise.sets.forEach((set, i) => {
-                    document.getElementById(`ex-weight-${i + 1}`).value = set.weight;
-                    document.getElementById(`ex-reps-${i + 1}`).value = set.reps;
-                });
+function prefillNextTemplateExercise() {
+    if (templateQueue.length === 0) return;
 
-                // Add the exercise
-                if (index === template.exercises.length - 1) {
-                    addExerciseToCurrentWorkout();
-                } else {
-                    addExerciseToCurrentWorkout();
-                }
-            }, 50);
-        }, 50 * (index + 1));
+    const exercise = templateQueue.shift();
+    exerciseSelect.value = exercise.exercise;
+    exerciseNumSetsInput.value = exercise.sets.length;
+    generateExerciseSetInputs(exercise.sets.length);
+
+    exercise.sets.forEach((set, i) => {
+        document.getElementById(`ex-weight-${i + 1}`).value = set.weight;
+        document.getElementById(`ex-reps-${i + 1}`).value = set.reps;
     });
 }
 
