@@ -1522,11 +1522,12 @@ function renderProgressChart() {
 
     const pts = percentages.map((p, i) => ({ x: getX(i), y: getY(p) }));
 
-    function smoothPath() {
-        ctx.moveTo(pts[0].x, pts[0].y);
+    // Draw bezier curve segments — no moveTo inside so the path stays continuous
+    function drawCurveSegments() {
         for (let i = 0; i < pts.length - 1; i++) {
             const cpx = (pts[i].x + pts[i + 1].x) / 2;
-            ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, (pts[i].y + pts[i + 1].y) / 2);
+            const cpy = (pts[i].y + pts[i + 1].y) / 2;
+            ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, cpy);
         }
         ctx.quadraticCurveTo(
             pts[pts.length - 2].x, pts[pts.length - 2].y,
@@ -1534,7 +1535,7 @@ function renderProgressChart() {
         );
     }
 
-    // Gradient fill
+    // Gradient fill — single closed path, no moveTo interruption
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
     grad.addColorStop(0, 'rgba(108, 92, 210, 0.45)');
     grad.addColorStop(1, 'rgba(108, 92, 210, 0.00)');
@@ -1542,15 +1543,16 @@ function renderProgressChart() {
     ctx.beginPath();
     ctx.moveTo(pts[0].x, height - pad.bottom);
     ctx.lineTo(pts[0].x, pts[0].y);
-    smoothPath();
+    drawCurveSegments();
     ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Stroke line — single clean curve, no dots
+    // Stroke drawn after fill so it sits on top and covers the fill edge
     ctx.beginPath();
-    smoothPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    drawCurveSegments();
     ctx.strokeStyle = '#6c5cd2';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
