@@ -1289,6 +1289,7 @@ function useWorkoutTemplate(workoutName) {
     if (!template) return;
 
     closeWorkoutLayoutModal();
+    createWorkoutSection.classList.remove('hidden');
     workoutNameInput.value = workoutName;
     setDefaultDate();
     startNewWorkout();
