@@ -1949,3 +1949,24 @@ select:focus {
     color: var(--text-light);
     margin: 0;
 }
+
+/* Workout history card action buttons */
+.workout-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-start-history {
+    background: #6c5cd2;
+    color: white;
+    padding: 8px 14px;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.btn-start-history:hover {
+    background: #5a4bbf;
+    transform: translateY(-1px);
+}

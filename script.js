@@ -102,9 +102,11 @@ const clearBtn = document.getElementById('clearBtn');
 // Workout Detail Modal
 const workoutDetailModal = document.getElementById('workoutDetailModal');
 const closeWorkoutDetailBtn = document.getElementById('closeWorkoutDetailBtn');
+const startFromDetailBtn = document.getElementById('startFromDetailBtn');
 const workoutDetailTitle = document.getElementById('workoutDetailTitle');
 const workoutDetailDate = document.getElementById('workoutDetailDate');
 const workoutDetailExercises = document.getElementById('workoutDetailExercises');
+let currentDetailWorkoutId = null;
 
 // Exercise Detail Modal
 const exerciseDetailModal = document.getElementById('exerciseDetailModal');
@@ -219,6 +221,9 @@ function setupEventListeners() {
 
     if (closeDetailBtn) closeDetailBtn.addEventListener('click', closeExerciseDetail);
     if (closeWorkoutDetailBtn) closeWorkoutDetailBtn.addEventListener('click', closeWorkoutDetail);
+    if (startFromDetailBtn) startFromDetailBtn.addEventListener('click', () => {
+        if (currentDetailWorkoutId) startWorkoutFromId(currentDetailWorkoutId);
+    });
     if (clearBtn) clearBtn.addEventListener('click', resetAllData);
     if (startNewWorkoutBtn) startNewWorkoutBtn.addEventListener('click', () => showWorkoutLayoutModal());
     if (closeLayoutModalBtn) closeLayoutModalBtn.addEventListener('click', () => closeWorkoutLayoutModal());
@@ -943,6 +948,7 @@ function closeExerciseDetail() {
 function openWorkoutDetail(workoutId) {
     const workout = workouts.find(w => w.id === workoutId);
     if (!workout) return;
+    currentDetailWorkoutId = workoutId;
 
     workoutDetailTitle.textContent = workout.name;
     const dateObj = new Date(workout.date);
@@ -1141,7 +1147,8 @@ function renderWorkoutHistory() {
                 </p>
                 <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${exerciseNames}</p>
             </div>
-            <div class="delete-btn">
+            <div class="workout-card-actions">
+                <button class="btn btn-start-history" onclick="event.stopPropagation(); startWorkoutFromId('${workout.id}')">▶ Start</button>
                 <button class="btn btn-delete" onclick="event.stopPropagation(); deleteWorkout('${workout.id}')">Delete</button>
             </div>
         `;
@@ -1326,6 +1333,27 @@ function renderPastWorkoutsInModal() {
         item.addEventListener('click', () => useWorkoutTemplate(name));
         pastWorkoutsList.appendChild(item);
     });
+}
+
+function startWorkoutFromId(workoutId) {
+    const template = workouts.find(w => w.id === workoutId);
+    if (!template) return;
+
+    // Close any open modals
+    if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
+    closeWorkoutLayoutModal();
+
+    // Show the create section and pre-fill name + today's date
+    createWorkoutSection.classList.remove('hidden');
+    workoutNameInput.value = template.name;
+    setDefaultDate();
+    startNewWorkout();
+
+    // Queue exercises for one-at-a-time editing
+    templateQueue = [...template.exercises];
+    prefillNextTemplateExercise();
+
+    createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
 }
 
 function useWorkoutTemplate(workoutName) {
