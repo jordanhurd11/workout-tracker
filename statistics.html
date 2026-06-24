@@ -15,18 +15,23 @@
             </div>
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item" onclick="location.href='index.html'">
-                    <span>📊</span><span>Dashboard</span>
+                    <span class="sidebar-icon">📊</span><span>Dashboard</span>
                 </li>
                 <li class="sidebar-menu-item active" onclick="location.href='statistics.html'">
-                    <span>📈</span><span>Workout Statistics</span>
+                    <span class="sidebar-icon">📈</span><span>Workout Statistics</span>
                 </li>
                 <li class="sidebar-menu-item" onclick="location.href='calendar.html'">
-                    <span>📅</span><span>Calendar</span>
+                    <span class="sidebar-icon">📅</span><span>Calendar</span>
                 </li>
                 <li class="sidebar-menu-item" onclick="location.href='achievements.html'">
-                    <span>🏆</span><span>Achievements</span>
+                    <span class="sidebar-icon">🏆</span><span>Achievements</span>
                 </li>
             </ul>
+            <div class="sidebar-bottom">
+                <div class="sidebar-menu-item sidebar-settings">
+                    <span class="sidebar-icon">⚙️</span><span>Settings</span>
+                </div>
+            </div>
         </aside>
 
         <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
@@ -36,11 +41,10 @@
                     <input type="text" placeholder="Find something new...">
                 </div>
                 <div style="display: flex; gap: 15px; align-items: center;">
-                    <span style="font-size: 1.2em; cursor: pointer;">🔔</span>
-                    <span style="font-size: 1.2em; cursor: pointer;">👤</span>
+                    <span style="font-size: 1.2em; cursor: pointer; color: var(--text-light);">🔔</span>
+                    <span style="font-size: 1.2em; cursor: pointer; color: var(--text-light);">👤</span>
                 </div>
             </header>
-
             <main>
                 <section class="stats-page-section">
                     <h2>Percent Increase by Muscle Group</h2>
@@ -50,13 +54,11 @@
                     </div>
                 </section>
             </main>
-
             <footer>
                 <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
             </footer>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

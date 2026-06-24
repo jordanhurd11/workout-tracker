@@ -15,18 +15,23 @@
             </div>
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item active" onclick="location.href='index.html'">
-                    <span>📊</span><span>Dashboard</span>
+                    <span class="sidebar-icon">📊</span><span>Dashboard</span>
                 </li>
                 <li class="sidebar-menu-item" onclick="location.href='statistics.html'">
-                    <span>📈</span><span>Workout Statistics</span>
+                    <span class="sidebar-icon">📈</span><span>Workout Statistics</span>
                 </li>
                 <li class="sidebar-menu-item" onclick="location.href='calendar.html'">
-                    <span>📅</span><span>Calendar</span>
+                    <span class="sidebar-icon">📅</span><span>Calendar</span>
                 </li>
                 <li class="sidebar-menu-item" onclick="location.href='achievements.html'">
-                    <span>🏆</span><span>Achievements</span>
+                    <span class="sidebar-icon">🏆</span><span>Achievements</span>
                 </li>
             </ul>
+            <div class="sidebar-bottom">
+                <div class="sidebar-menu-item sidebar-settings">
+                    <span class="sidebar-icon">⚙️</span><span>Settings</span>
+                </div>
+            </div>
         </aside>
 
         <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
@@ -96,15 +101,19 @@
                 </section>
 
                 <section class="stats-section">
+                    <h2 class="overview-heading">Overview</h2>
                     <div class="stats-container">
                         <div class="stat-card">
-                            <h3>Total Workouts</h3>
+                            <div class="stat-icon-badge stat-badge-blue">🏋️</div>
+                            <div class="stat-card-label">Workouts</div>
                             <p id="totalWorkouts" class="stat-value">0</p>
-                            <p id="workoutDaysLabel" class="stat-sublabel"></p>
+                            <p id="workoutDaysLabel" class="stat-card-sublabel"></p>
                         </div>
                         <div class="stat-card">
-                            <h3>Total Exercise Progress</h3>
+                            <div class="stat-icon-badge stat-badge-purple">📈</div>
+                            <div class="stat-card-label">Progress</div>
                             <p id="totalProgress" class="stat-value">+0%</p>
+                            <div class="stat-card-sublabel">Combined 1RM</div>
                         </div>
                     </div>
                 </section>
