@@ -1681,7 +1681,7 @@ select option {
 }
 
 .modal-header {
-    background: #0047AB;
+    background: var(--primary-blue);
     color: white;
     padding: 24px;
     display: flex;
@@ -1721,14 +1721,14 @@ select option {
 }
 
 .layout-option {
-    background: #F3F4F6;
+    background: var(--bg-deep, #0a0918);
     padding: 20px;
     border-radius: 8px;
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--border-light);
 }
 
 .layout-option h3 {
-    color: #1F2937;
+    color: #ffffff;
     font-size: 1.1em;
     font-weight: 600;
     margin-bottom: 8px;
@@ -1736,7 +1736,7 @@ select option {
 }
 
 .layout-option p {
-    color: #6B7280;
+    color: var(--text-light);
     font-size: 0.95em;
     margin-bottom: 15px;
     margin-top: 0;
@@ -1748,8 +1748,8 @@ select option {
 }
 
 .past-workout-item {
-    background: white;
-    border: 1px solid #E5E7EB;
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
     padding: 12px;
     border-radius: 6px;
     cursor: pointer;
@@ -1757,19 +1757,19 @@ select option {
 }
 
 .past-workout-item:hover {
-    background: #F9FAFB;
-    border-color: #0047AB;
+    background: #2a2840;
+    border-color: var(--primary-blue);
 }
 
 .past-workout-item-name {
-    font-weight: 600;
-    color: #1F2937;
+    font-weight: 700;
+    color: #ffffff;
     margin-bottom: 4px;
 }
 
 .past-workout-item-exercises {
     font-size: 0.85em;
-    color: #6B7280;
+    color: var(--text-light);
 }
 
 .empty-message {
@@ -1794,7 +1794,7 @@ select option {
 }
 
 .past-workout-item {
-    background: white;
+    background: var(--card-bg);
     padding: 12px 15px;
     border-radius: 6px;
     border: 1px solid var(--border-light);
