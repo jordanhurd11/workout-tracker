@@ -1565,17 +1565,23 @@ function renderProgressChart() {
 
     const pts = percentages.map((p, i) => ({ x: getX(i), y: getY(p) }));
 
-    // Draw bezier curve segments — no moveTo inside so the path stays continuous
+    // Catmull-Rom cubic bezier — smooth tangent continuity, no kinks at joins
     function drawCurveSegments() {
+        if (pts.length === 2) { ctx.lineTo(pts[1].x, pts[1].y); return; }
+        const t = 0.35; // tension
         for (let i = 0; i < pts.length - 1; i++) {
-            const cpx = (pts[i].x + pts[i + 1].x) / 2;
-            const cpy = (pts[i].y + pts[i + 1].y) / 2;
-            ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, cpy);
+            const p0 = pts[Math.max(i - 1, 0)];
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            const p3 = pts[Math.min(i + 2, pts.length - 1)];
+            ctx.bezierCurveTo(
+                p1.x + (p2.x - p0.x) * t,
+                p1.y + (p2.y - p0.y) * t,
+                p2.x - (p3.x - p1.x) * t,
+                p2.y - (p3.y - p1.y) * t,
+                p2.x, p2.y
+            );
         }
-        ctx.quadraticCurveTo(
-            pts[pts.length - 2].x, pts[pts.length - 2].y,
-            pts[pts.length - 1].x, pts[pts.length - 1].y
-        );
     }
 
     const NEON = '#39ff8a';
