@@ -1580,10 +1580,11 @@ function renderProgressChart() {
 
     const NEON = '#39ff8a';
 
-    // Neon green gradient fill — single closed path
+    // Gradient fill — brighter near the top to simulate a natural glow under the line
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-    grad.addColorStop(0, 'rgba(57, 255, 138, 0.28)');
-    grad.addColorStop(1, 'rgba(57, 255, 138, 0.00)');
+    grad.addColorStop(0.00, 'rgba(57, 255, 138, 0.38)');
+    grad.addColorStop(0.18, 'rgba(57, 255, 138, 0.18)');
+    grad.addColorStop(1.00, 'rgba(57, 255, 138, 0.00)');
 
     ctx.beginPath();
     ctx.moveTo(pts[0].x, height - pad.bottom);
@@ -1594,7 +1595,7 @@ function renderProgressChart() {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Neon green stroke with glow
+    // Single clean neon stroke — no shadowBlur (avoids double-line artefact)
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     drawCurveSegments();
@@ -1602,10 +1603,7 @@ function renderProgressChart() {
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.shadowColor = NEON;
-    ctx.shadowBlur = 10;
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
     // Y-axis labels — muted on dark bg
     ctx.fillStyle = '#4e4c6a';
