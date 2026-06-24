@@ -1812,8 +1812,8 @@ select option {
 }
 
 .past-workout-item-name {
-    font-weight: 600;
-    color: var(--text-dark);
+    font-weight: 700;
+    color: #ffffff;
 }
 
 .past-workout-item-exercises {
