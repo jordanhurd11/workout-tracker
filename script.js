@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentPage === 'dashboard') {
         populateExerciseDropdown();
+        populatePlanExerciseDropdown(); // plan modal is also on dashboard
         setDefaultDate();
         setupEventListeners();
 
@@ -257,7 +258,7 @@ function setupEventListeners() {
     if (layoutModalOverlay) layoutModalOverlay.addEventListener('click', () => closeWorkoutLayoutModal());
     if (createNewWorkoutBtn) createNewWorkoutBtn.addEventListener('click', () => startNewWorkoutFromModal());
 
-    // Dashboard calendar navigation (shares calendarMonth/calendarYear with full calendar)
+    // Dashboard calendar navigation
     const dashPrev = document.getElementById('dashCalPrevBtn');
     const dashNext = document.getElementById('dashCalNextBtn');
     if (dashPrev) dashPrev.addEventListener('click', () => {
@@ -270,6 +271,13 @@ function setupEventListeners() {
         if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
         renderWorkoutCalendar();
     });
+
+    // Plan workout modal (shared with calendar page, now also on dashboard)
+    document.getElementById('closePlanModalBtn')?.addEventListener('click', closePlanModal);
+    document.getElementById('cancelPlanBtn')?.addEventListener('click', closePlanModal);
+    document.getElementById('planModalBackdrop')?.addEventListener('click', closePlanModal);
+    document.getElementById('addPlanExerciseBtn')?.addEventListener('click', addPlanExercise);
+    document.getElementById('savePlanBtn')?.addEventListener('click', savePlan);
 }
 
 // ========================================
@@ -1527,6 +1535,9 @@ function renderWorkoutCalendar() {
         if (hasPlanned && !hasCompleted && isFuture) {
             cell.style.cursor = 'pointer';
             cell.addEventListener('click', () => startFromPlan(plans[0].id));
+        } else if (isFuture || isToday) {
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('click', () => openPlanModal(cellDate));
         }
 
         workoutCalendar.appendChild(cell);
@@ -1953,7 +1964,11 @@ function savePlan() {
     });
     savePlannedWorkouts();
     closePlanModal();
-    renderFullCalendar();
+    if (currentPage === 'calendar') {
+        renderFullCalendar();
+    } else {
+        renderWorkoutCalendar();
+    }
 }
 
 // ========================================
