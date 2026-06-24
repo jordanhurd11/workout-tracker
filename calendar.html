@@ -35,20 +35,85 @@
         </aside>
 
         <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
-            <header>
-                <h1>Calendar</h1>
-            </header>
+            <header><h1>Calendar</h1></header>
+
             <main>
                 <section class="calendar-page-section">
-                    <h2>Coming Soon</h2>
-                    <p class="section-description">Plan future workouts, track completed days, and schedule sessions — coming in a future update.</p>
+
+                    <!-- Month navigation -->
+                    <div class="cal-nav">
+                        <button class="btn-cal-nav" id="calPrevBtn">&#8249;</button>
+                        <h2 id="calendarMonthYear"></h2>
+                        <button class="btn-cal-nav" id="calNextBtn">&#8250;</button>
+                    </div>
+
+                    <!-- Day-of-week headers -->
+                    <div class="cal-weekdays">
+                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
+                        <div>Thu</div><div>Fri</div><div>Sat</div>
+                    </div>
+
+                    <!-- Calendar grid (filled by JS) -->
+                    <div id="calendarGrid" class="cal-grid"></div>
+
+                    <!-- Legend -->
+                    <div class="cal-legend">
+                        <div class="legend-item"><span class="legend-dot legend-green"></span>Completed</div>
+                        <div class="legend-item"><span class="legend-dot legend-red"></span>Missed</div>
+                        <div class="legend-item"><span class="legend-dot legend-blue"></span>Planned</div>
+                        <div class="legend-item"><span class="legend-dot legend-grey"></span>Open</div>
+                    </div>
+
                 </section>
             </main>
+
             <footer>
                 <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
             </footer>
         </div>
     </div>
+
+    <!-- Plan Workout Modal -->
+    <div id="planWorkoutModal" class="plan-modal hidden">
+        <div class="plan-modal-backdrop" id="planModalBackdrop"></div>
+        <div class="plan-modal-content">
+            <div class="plan-modal-header">
+                <h2>Plan a Workout</h2>
+                <button class="btn btn-close" id="closePlanModalBtn">✕</button>
+            </div>
+            <div class="plan-modal-body">
+                <div class="form-group">
+                    <label for="planName">Workout Name</label>
+                    <input type="text" id="planName" placeholder="e.g., Push Day, Leg Day">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="planDate">Date</label>
+                        <input type="date" id="planDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="planTime">Time</label>
+                        <input type="time" id="planTime">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Exercises Planned</label>
+                    <div class="plan-exercise-picker">
+                        <select id="planExerciseSelect">
+                            <option value="">Select an exercise...</option>
+                        </select>
+                        <button class="btn btn-primary" id="addPlanExerciseBtn">+ Add</button>
+                    </div>
+                    <div id="planExerciseList" class="plan-exercise-list"></div>
+                </div>
+                <div class="plan-modal-actions">
+                    <button class="btn btn-primary" id="savePlanBtn">Save Plan</button>
+                    <button class="btn btn-secondary" id="cancelPlanBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
