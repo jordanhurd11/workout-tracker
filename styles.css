@@ -1545,11 +1545,7 @@ select option {
     font-weight: 600;
 }
 
-.workout-calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-}
+/* .workout-calendar replaced by .cal-grid */
 
 .calendar-day {
     aspect-ratio: 1;

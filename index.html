@@ -125,8 +125,22 @@
                 </section>
 
                 <section class="calendar-section">
-                    <h3>This Month's Activity</h3>
-                    <div id="workoutCalendar" class="workout-calendar"></div>
+                    <div class="cal-nav">
+                        <button class="btn-cal-nav" id="dashCalPrevBtn">&#8249;</button>
+                        <h3 id="dashCalMonthYear" style="margin:0;font-size:1.15em;color:#fff;"></h3>
+                        <button class="btn-cal-nav" id="dashCalNextBtn">&#8250;</button>
+                    </div>
+                    <div class="cal-weekdays">
+                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
+                        <div>Thu</div><div>Fri</div><div>Sat</div>
+                    </div>
+                    <div id="workoutCalendar" class="cal-grid"></div>
+                    <div class="cal-legend" style="margin-top:16px;">
+                        <div class="legend-item"><span class="legend-dot legend-green"></span>Completed</div>
+                        <div class="legend-item"><span class="legend-dot legend-red"></span>Missed</div>
+                        <div class="legend-item"><span class="legend-dot legend-blue"></span>Planned</div>
+                        <div class="legend-item"><span class="legend-dot legend-grey"></span>Open</div>
+                    </div>
                 </section>
 
                 <section class="history-section">
