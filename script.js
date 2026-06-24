@@ -1426,70 +1426,94 @@ function prefillNextTemplateExercise() {
 // ========================================
 
 function renderWorkoutCalendar() {
+    if (!workoutCalendar) return;
     workoutCalendar.innerHTML = '';
 
-    if (!workoutCalendar) return;
-
-    // Get current month
     const now = new Date();
-    const year = now.getFullYear();
+    const year  = now.getFullYear();
     const month = now.getMonth();
 
-    // Get first day and number of days in month
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const today = new Date(year, month, now.getDate());
 
-    // Collect workout dates
-    const workoutDates = new Set();
-    workouts.forEach(workout => {
-        const date = new Date(workout.date);
-        if (date.getFullYear() === year && date.getMonth() === month) {
-            workoutDates.add(date.getDate());
+    // Map day -> completed workout names
+    const completedMap = {};
+    workouts.forEach(w => {
+        const d = new Date(w.date + 'T00:00:00');
+        if (d.getFullYear() === year && d.getMonth() === month) {
+            const day = d.getDate();
+            if (!completedMap[day]) completedMap[day] = [];
+            completedMap[day].push(w.name);
         }
     });
 
-    // Get today's date
-    const today = new Date();
-    const todayDate = today.getDate();
+    // Map day -> planned workouts  (same data as full calendar page)
+    const plannedMap = {};
+    plannedWorkouts.forEach(p => {
+        const d = new Date(p.date + 'T00:00:00');
+        if (d.getFullYear() === year && d.getMonth() === month) {
+            const day = d.getDate();
+            if (!plannedMap[day]) plannedMap[day] = [];
+            plannedMap[day].push(p);
+        }
+    });
 
-    // Add previous month days
+    const firstDay    = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrev  = new Date(year, month, 0).getDate();
+
+    // Filler cells from previous month
     for (let i = firstDay - 1; i >= 0; i--) {
-        const day = daysInPrevMonth - i;
-        const dayEl = createCalendarDayElement(day, 'future');
-        workoutCalendar.appendChild(dayEl);
+        const el = document.createElement('div');
+        el.className = 'calendar-day faded';
+        el.innerHTML = '<span class="calendar-day-number">' + (daysInPrev - i) + '</span>';
+        workoutCalendar.appendChild(el);
     }
 
-    // Add current month days
+    // Current month days — same colour logic as full calendar
     for (let day = 1; day <= daysInMonth; day++) {
+        const cellDate   = new Date(year, month, day);
+        const isToday    = cellDate.getTime() === today.getTime();
+        const isPast     = cellDate < today;
+        const isFuture   = cellDate > today;
+
+        const completed  = completedMap[day] || [];
+        const plans      = plannedMap[day]   || [];
+        const hasCompleted = completed.length > 0;
+        const hasPlanned   = plans.length > 0;
+
         let status = 'future';
-        
-        if (day < todayDate) {
-            status = workoutDates.has(day) ? 'worked-out' : 'no-workout';
-        } else if (day === todayDate) {
-            status = workoutDates.has(day) ? 'worked-out' : 'no-workout';
-        } else {
-            status = 'future';
+        if (hasCompleted)                status = 'worked-out';
+        else if (isPast || isToday)      status = 'no-workout';
+        else if (isFuture && hasPlanned) status = 'planned';
+
+        const el = document.createElement('div');
+        el.className = 'calendar-day ' + status + (isToday ? ' today' : '');
+
+        let inner = '<span class="calendar-day-number">' + day + '</span>';
+        if (hasPlanned && !hasCompleted && isFuture) {
+            inner += '<span class="mini-cal-plan">' + plans[0].name + '</span>';
+        }
+        el.innerHTML = inner;
+
+        // Blue planned day → start the planned workout
+        if (hasPlanned && !hasCompleted && isFuture) {
+            el.style.cursor = 'pointer';
+            el.title = 'Start: ' + plans[0].name;
+            el.addEventListener('click', () => startFromPlan(plans[0].id));
         }
 
-        const dayEl = createCalendarDayElement(day, status);
-        workoutCalendar.appendChild(dayEl);
+        workoutCalendar.appendChild(el);
     }
 
-    // Add next month days
-    const totalCells = workoutCalendar.children.length;
-    const remainingCells = 42 - totalCells; // 6 rows × 7 days
-    for (let day = 1; day <= remainingCells; day++) {
-        const dayEl = createCalendarDayElement(day, 'future');
-        workoutCalendar.appendChild(dayEl);
+    // Filler cells for next month
+    const filled = workoutCalendar.children.length;
+    const remaining = 42 - filled;
+    for (let day = 1; day <= remaining; day++) {
+        const el = document.createElement('div');
+        el.className = 'calendar-day faded';
+        el.innerHTML = '<span class="calendar-day-number">' + day + '</span>';
+        workoutCalendar.appendChild(el);
     }
-}
-
-function createCalendarDayElement(day, status) {
-    const dayEl = document.createElement('div');
-    dayEl.className = `calendar-day ${status}`;
-    dayEl.innerHTML = `<span class="calendar-day-number">${day}</span>`;
-    return dayEl;
 }
 
 // ========================================
