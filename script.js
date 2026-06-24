@@ -1493,15 +1493,23 @@ function renderProgressChart() {
     if (!canvas) return;
 
     const container = canvas.parentElement;
-    canvas.width = container ? container.clientWidth : 800;
-    canvas.height = container ? container.clientHeight : 300;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = container ? container.clientWidth  : 800;
+    const cssH = container ? container.clientHeight : 280;
+
+    // High-DPI: buffer is dpr× larger, CSS displays it at cssW×cssH
+    canvas.width  = cssW * dpr;
+    canvas.height = cssH * dpr;
 
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    ctx.scale(dpr, dpr);
+
+    // All drawing uses CSS pixel dimensions
+    const width  = cssW;
+    const height = cssH;
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#1e1c35';   // match dark card background
     ctx.fillRect(0, 0, width, height);
 
     const allEntries = getAllExerciseEntries(workouts);
@@ -1563,10 +1571,12 @@ function renderProgressChart() {
         );
     }
 
-    // Gradient fill — single closed path, no moveTo interruption
+    const NEON = '#39ff8a';
+
+    // Neon green gradient fill — single closed path
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-    grad.addColorStop(0, 'rgba(108, 92, 210, 0.45)');
-    grad.addColorStop(1, 'rgba(108, 92, 210, 0.00)');
+    grad.addColorStop(0, 'rgba(57, 255, 138, 0.28)');
+    grad.addColorStop(1, 'rgba(57, 255, 138, 0.00)');
 
     ctx.beginPath();
     ctx.moveTo(pts[0].x, height - pad.bottom);
@@ -1577,18 +1587,21 @@ function renderProgressChart() {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Stroke drawn after fill so it sits on top and covers the fill edge
+    // Neon green stroke with glow
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     drawCurveSegments();
-    ctx.strokeStyle = '#6c5cd2';
+    ctx.strokeStyle = NEON;
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.shadowColor = NEON;
+    ctx.shadowBlur = 10;
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Y-axis labels
-    ctx.fillStyle = '#bbb';
+    // Y-axis labels — muted on dark bg
+    ctx.fillStyle = '#4e4c6a';
     ctx.font = '11px -apple-system, sans-serif';
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
@@ -1597,7 +1610,7 @@ function renderProgressChart() {
         ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
     }
 
-    // Rotated date labels at every point (no dots)
+    // Rotated date labels at every point
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     pts.forEach((pt, i) => {
         const d = new Date(uniqueDates[i]);
@@ -1605,7 +1618,7 @@ function renderProgressChart() {
         ctx.save();
         ctx.translate(pt.x, height - pad.bottom + 8);
         ctx.rotate(-Math.PI / 4);
-        ctx.fillStyle = '#999';
+        ctx.fillStyle = '#4e4c6a';
         ctx.font = '10px -apple-system, sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(label, 0, 0);
