@@ -1213,7 +1213,7 @@ select option {
    ======================================== */
 
 .create-workout-section {
-    background: white;
+    background: transparent;
     padding: 0;
 }
 
@@ -1261,7 +1261,7 @@ select option {
 }
 
 .exercise-set-input-group {
-    background: white;
+    background: var(--card-bg);
     border: 1px solid var(--border-light);
     border-radius: 6px;
     padding: 15px;
