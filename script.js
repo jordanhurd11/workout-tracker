@@ -158,6 +158,13 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWorkoutHistory();
         renderWorkoutCalendar();
         renderProgressChart();
+
+        // Redraw chart at the new size whenever the window is resized
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => renderProgressChart(), 150);
+        });
     } else if (currentPage === 'statistics') {
         renderMuscleGroupProgress();
     } else if (currentPage === 'achievements') {
