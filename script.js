@@ -143,7 +143,9 @@ let planExercises = [];
 let selectedTemplateId = null;
 let chartAnimId = null;
 let chartState  = null;
-let editingWorkoutId = null; // set when editing an existing workout
+let editingWorkoutId    = null;
+let lastDeletedWorkout  = null;
+let undoTimer           = null;
 let calendarYear  = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
@@ -185,6 +187,63 @@ function chartBg()    { return document.body.classList.contains('light-mode') ? 
 function chartLabel() { return document.body.classList.contains('light-mode') ? '#9ca3af' : '#4e4c6a'; }
 
 // ========================================
+// KEYBOARD SHORTCUTS
+// ========================================
+
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', e => {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key === 'n' || e.key === 'N') showWorkoutLayoutModal();
+        if (e.key === 'Escape') {
+            closeWorkoutLayoutModal();
+            const planModal = document.getElementById('planWorkoutModal');
+            if (planModal) planModal.classList.add('hidden');
+        }
+    });
+}
+
+// ========================================
+// UNDO DELETE
+// ========================================
+
+function showUndoToast(workoutName) {
+    const old = document.getElementById('undoToast');
+    if (old) old.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'undoToast';
+    toast.className = 'undo-toast';
+    toast.innerHTML =
+        '<div class="undo-toast-msg">Deleted "' + workoutName + '"</div>' +
+        '<button class="undo-toast-btn" onclick="undoDelete()">Undo</button>' +
+        '<div class="undo-progress-bar"><div class="undo-progress-fill"></div></div>';
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        toast.classList.add('undo-toast-show');
+        const fill = toast.querySelector('.undo-progress-fill');
+        if (fill) { fill.style.transition = 'width 5s linear'; fill.style.width = '0%'; }
+    }));
+
+    undoTimer = setTimeout(() => {
+        toast.classList.add('undo-toast-hide');
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 400);
+        lastDeletedWorkout = null; undoTimer = null;
+    }, 5000);
+}
+
+function undoDelete() {
+    if (!lastDeletedWorkout) return;
+    clearTimeout(undoTimer); undoTimer = null;
+    workouts.push(lastDeletedWorkout);
+    lastDeletedWorkout = null;
+    saveToLocalStorage(); renderStats();
+    const toast = document.getElementById('undoToast');
+    if (toast) { toast.classList.add('undo-toast-hide'); setTimeout(() => toast.remove(), 400); }
+}
+
+// ========================================
 // ANIMATION HELPERS
 // ========================================
 
@@ -218,9 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentPage === 'dashboard') {
         populateExerciseDropdown();
-        populatePlanExerciseDropdown(); // plan modal is also on dashboard
+        populatePlanExerciseDropdown();
         setDefaultDate();
         setupEventListeners();
+        setupKeyboardShortcuts();
 
         // If the user tapped a planned workout on the calendar, load it now
         const pendingPlanId = sessionStorage.getItem('pendingPlan');
@@ -409,6 +469,7 @@ function startNewWorkout() {
         id: crypto.randomUUID(),
         name: name,
         date: date,
+        notes: (document.getElementById('workoutNotes')?.value || '').trim(),
         exercises: []
     };
 
@@ -609,6 +670,8 @@ function saveCurrentWorkout() {
     currentWorkoutDisplay.classList.add('hidden');
     currentExercisesList.innerHTML = '';
     workoutNameInput.value = '';
+    const notesEl = document.getElementById('workoutNotes');
+    if (notesEl) notesEl.value = '';
     setDefaultDate();
 
     // Update displays
@@ -625,6 +688,8 @@ function cancelCurrentWorkout() {
     addExerciseForm.classList.add('hidden');
     currentWorkoutDisplay.classList.add('hidden');
     workoutNameInput.value = '';
+    const notesEl = document.getElementById('workoutNotes');
+    if (notesEl) notesEl.value = '';
     setDefaultDate();
 }
 
@@ -1295,6 +1360,9 @@ function openWorkoutDetail(workoutId) {
     const dateObj = new Date(workout.date);
     const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     workoutDetailDate.textContent = dateStr;
+    const notesDetailEl = document.getElementById('workoutDetailNotes');
+    if (notesDetailEl) notesDetailEl.textContent = workout.notes || '';
+    if (notesDetailEl) notesDetailEl.style.display = workout.notes ? '' : 'none';
 
     workoutDetailExercises.innerHTML = '';
 
@@ -1499,6 +1567,7 @@ function renderWorkoutHistory() {
                     ${workout.exercises.length} exercise${workout.exercises.length !== 1 ? 's' : ''} · ${totalSets} set${totalSets !== 1 ? 's' : ''} · ${totalVolume.toLocaleString()} lbs
                 </p>
                 <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${exerciseNames}</p>
+                ${workout.notes ? `<p class="workout-notes-display">📝 ${workout.notes}</p>` : ''}
             </div>
             <div class="workout-card-actions">
                 <button class="btn btn-start-history" onclick="event.stopPropagation(); startWorkoutFromId('${workout.id}')">▶ Start</button>
@@ -1605,11 +1674,18 @@ function renderStats() {
 // ========================================
 
 function deleteWorkout(workoutId) {
-    if (confirm('Are you sure you want to delete this workout?')) {
-        workouts = workouts.filter(w => w.id !== workoutId);
-        saveToLocalStorage();
-        renderStats();
-    }
+    const workout = workouts.find(w => w.id === workoutId);
+    if (!workout) return;
+    // Clear any pending undo
+    if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+    const prev = document.getElementById('undoToast');
+    if (prev) prev.remove();
+
+    lastDeletedWorkout = workout;
+    workouts = workouts.filter(w => w.id !== workoutId);
+    saveToLocalStorage();
+    renderStats();
+    showUndoToast(workout.name);
 }
 
 // ========================================
@@ -2524,6 +2600,8 @@ function editWorkout(workoutId) {
     createWorkoutSection.classList.remove('hidden');
     if (workoutNameInput) workoutNameInput.value = workout.name;
     if (workoutDateInput) workoutDateInput.value = workout.date;
+    const notesEditEl = document.getElementById('workoutNotes');
+    if (notesEditEl) notesEditEl.value = workout.notes || '';
 
     // Load existing exercises into currentWorkout
     currentWorkout = {
@@ -2645,7 +2723,11 @@ function showPRCelebration(prs) {
             '<div class="pr-toast-item">🏆 ' + pr.exercise + ': ' +
             pr.weight + ' lbs × ' + pr.reps + ' reps' +
             '<span class="pr-toast-1rm">Est. 1RM: ' + pr.est1RM.toFixed(1) + ' lbs</span></div>'
-        ).join('');
+        ).join('') +
+        '<div class="pr-toast-link">View Personal Records →</div>';
+
+    toast.style.cursor = 'pointer';
+    toast.addEventListener('click', () => location.href = 'achievements.html');
 
     document.body.appendChild(toast);
 

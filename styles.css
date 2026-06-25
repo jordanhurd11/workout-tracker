@@ -2748,3 +2748,109 @@ body.light-mode .set-reps-edit { background: #f9fafb; color: #1f2937; }
     overflow-y: auto;
     padding-right: 4px;
 }
+
+/* Workout notes textarea */
+.workout-notes-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-deep, #0a0918);
+    color: var(--text-dark);
+    font-size: 0.9em;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 64px;
+    transition: border-color 0.2s;
+}
+.workout-notes-input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(108,92,210,0.2);
+}
+body.light-mode .workout-notes-input { background: #f9fafb; color: #1f2937; }
+
+/* Notes shown in history cards and detail modal */
+.workout-notes-display {
+    font-size: 0.82em;
+    color: var(--text-light);
+    margin-top: 6px;
+    font-style: italic;
+}
+.workout-detail-notes {
+    font-size: 0.9em;
+    color: var(--text-light);
+    font-style: italic;
+    margin: 6px 0 14px;
+    padding: 8px 12px;
+    background: rgba(108,92,210,0.08);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-blue);
+}
+
+/* Undo delete toast */
+.undo-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--primary-blue);
+    border-radius: 14px;
+    padding: 16px 20px;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateX(-120%);
+    transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+    min-width: 260px;
+    max-width: 340px;
+}
+.undo-toast.undo-toast-show { transform: translateX(0); }
+.undo-toast.undo-toast-hide {
+    transform: translateX(-120%);
+    transition: transform 0.3s ease-in;
+}
+
+.undo-toast-msg {
+    font-size: 0.88em;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.undo-toast-btn {
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 18px;
+    font-size: 0.88em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.undo-toast-btn:hover { background: var(--secondary-blue); }
+
+.undo-progress-bar {
+    margin-top: 10px;
+    height: 3px;
+    background: var(--border-light);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.undo-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--primary-blue);
+    border-radius: 2px;
+}
+
+body.light-mode .undo-toast { background: #ffffff; }
+
+/* PR toast clickable link */
+.pr-toast-link {
+    font-size: 0.78em;
+    color: #22c55e;
+    margin-top: 10px;
+    text-align: right;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
