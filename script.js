@@ -307,6 +307,7 @@ const STORAGE_KEY = 'workoutTrackerData';
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     setupMobileSidebar();
+    setupCalendarTooltip();
     loadFromLocalStorage();
     loadPlannedWorkouts();
 
@@ -1989,6 +1990,9 @@ function renderWorkoutCalendar() {
             cell.addEventListener('click', () => openPlanModal(cellDate));
         }
 
+        cell.addEventListener('mouseenter', () => showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell));
+        cell.addEventListener('mouseleave', hideCalTooltip);
+
         workoutCalendar.appendChild(cell);
     }
 }
@@ -2400,6 +2404,9 @@ function renderFullCalendar() {
             cell.addEventListener('click', () => openPlanModal(cellDate));
         }
 
+        cell.addEventListener('mouseenter', () => showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell));
+        cell.addEventListener('mouseleave', hideCalTooltip);
+
         grid.appendChild(cell);
     }
 }
@@ -2762,4 +2769,88 @@ function showPRCelebration(prs) {
         toast.classList.add('pr-toast-hide');
         setTimeout(() => toast.remove(), 500);
     }, 5000);
+}
+
+// ========================================
+// CALENDAR DAY TOOLTIP
+// ========================================
+
+function setupCalendarTooltip() {
+    const tt = document.createElement('div');
+    tt.id = 'calTooltip';
+    tt.className = 'cal-tooltip';
+    tt.style.display = 'none';
+    document.body.appendChild(tt);
+    window.addEventListener('scroll', hideCalTooltip, { passive: true });
+}
+
+function showCalTooltip(day, year, month, completedMap, plannedMap, cellEl) {
+    const tt = document.getElementById('calTooltip');
+    if (!tt) return;
+
+    const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const dayWorkouts = workouts.filter(w => w.date === dateStr);
+    const plans       = plannedMap[day] || [];
+
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const cellDate = new Date(year, month, day);
+    const isPast   = cellDate < today;
+    const isToday  = cellDate.getTime() === today.getTime();
+
+    const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    let html = '<div class="cal-tt-date">' + DAY_NAMES[cellDate.getDay()] + ', ' + MONTHS_FULL[month] + ' ' + day + ', ' + year + '</div>';
+
+    if (dayWorkouts.length > 0) {
+        dayWorkouts.forEach(function(w) {
+            const totalSets = w.exercises.reduce(function(s,e){ return s + e.sets.length; }, 0);
+            const vol       = w.exercises.reduce(function(t,e){ return t + e.sets.reduce(function(s,set){ return s + set.weight*set.reps; }, 0); }, 0);
+            const exLines   = w.exercises.slice(0,4).map(function(e){ return '• ' + e.exercise; }).join('<br>');
+            const more      = w.exercises.length > 4 ? '<br>• +' + (w.exercises.length-4) + ' more' : '';
+            html += '<div class="cal-tt-workout">' +
+                '<div class="cal-tt-workout-name">💪 ' + w.name + '</div>' +
+                '<div class="cal-tt-stats">' + w.exercises.length + ' exercise' + (w.exercises.length!==1?'s':'') + ' · ' + totalSets + ' set' + (totalSets!==1?'s':'') + ' · ' + vol.toLocaleString() + ' lbs</div>' +
+                '<div class="cal-tt-exercises">' + exLines + more + '</div>' +
+                '</div>';
+        });
+    } else if (plans.length > 0) {
+        plans.forEach(function(p) {
+            const timeStr  = p.time ? '<div class="cal-tt-time">⏰ ' + formatTime(p.time) + '</div>' : '';
+            const exLines  = p.exercises && p.exercises.length > 0
+                ? '<div class="cal-tt-exercises">' + p.exercises.slice(0,4).map(function(e){ return '• '+e; }).join('<br>') + (p.exercises.length>4?'<br>• +' + (p.exercises.length-4)+' more':'') + '</div>'
+                : '';
+            html += '<div class="cal-tt-plan">' +
+                '<div class="cal-tt-plan-name">📅 ' + p.name + '</div>' +
+                timeStr + exLines +
+                '<div class="cal-tt-hint">Click to start this workout</div>' +
+                '</div>';
+        });
+    } else if (isPast || isToday) {
+        html += '<div class="cal-tt-rest">😴 Rest day — no workout logged</div>';
+    } else {
+        html += '<div class="cal-tt-empty">No workout planned<br><span class="cal-tt-hint">Click to plan one</span></div>';
+    }
+
+    tt.innerHTML = html;
+    tt.style.visibility = 'hidden';
+    tt.style.display = 'block';
+
+    const rect   = cellEl.getBoundingClientRect();
+    const ttRect = tt.getBoundingClientRect();
+    let top  = rect.top - ttRect.height - 10;
+    let left = rect.left + rect.width / 2 - ttRect.width / 2;
+
+    if (top < 10) top = rect.bottom + 10;
+    if (left + ttRect.width > window.innerWidth - 10) left = window.innerWidth - ttRect.width - 10;
+    if (left < 10) left = 10;
+
+    tt.style.top  = top  + 'px';
+    tt.style.left = left + 'px';
+    tt.style.visibility = 'visible';
+}
+
+function hideCalTooltip() {
+    const tt = document.getElementById('calTooltip');
+    if (tt) tt.style.display = 'none';
 }

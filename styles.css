@@ -3021,3 +3021,93 @@ body.light-mode .undo-toast { background: #ffffff; }
     .stats-container { grid-template-columns: 1fr; }
     .stat-value { font-size: 2em; }
 }
+
+/* ========================================
+   CALENDAR DAY TOOLTIP
+   ======================================== */
+
+.cal-tooltip {
+    position: fixed;
+    z-index: 3000;
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 200px;
+    max-width: 280px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    pointer-events: none;
+    font-size: 0.84em;
+    line-height: 1.5;
+    animation: ttFadeIn 0.15s ease;
+}
+
+@keyframes ttFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.cal-tt-date {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cal-tt-workout { margin-bottom: 6px; }
+
+.cal-tt-workout-name {
+    font-weight: 700;
+    color: #22c55e;
+    margin-bottom: 3px;
+}
+
+.cal-tt-stats {
+    font-size: 0.82em;
+    color: var(--text-light);
+    margin-bottom: 5px;
+}
+
+.cal-tt-exercises {
+    font-size: 0.8em;
+    color: var(--text-dark);
+    opacity: 0.85;
+}
+
+.cal-tt-plan { margin-bottom: 6px; }
+
+.cal-tt-plan-name {
+    font-weight: 700;
+    color: #818cf8;
+    margin-bottom: 3px;
+}
+
+.cal-tt-time {
+    font-size: 0.82em;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.cal-tt-rest {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.cal-tt-empty {
+    color: var(--text-light);
+    line-height: 1.7;
+}
+
+.cal-tt-hint {
+    font-size: 0.78em;
+    color: var(--primary-blue);
+    margin-top: 7px;
+    font-style: italic;
+    display: block;
+}
+
+body.light-mode .cal-tooltip { background: #ffffff; box-shadow: 0 8px 28px rgba(0,0,0,0.15); }
