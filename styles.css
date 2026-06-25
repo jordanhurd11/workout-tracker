@@ -3525,3 +3525,6 @@ body.light-mode .info-icon::after { background: #ffffff; }
 body.light-mode .radar-insights-card { background: #f9fafb; }
 body.light-mode .radar-tooltip { background: #ffffff; }
 body.light-mode .ri-item { border-bottom-color: rgba(0,0,0,0.06); }
+
+/* Keep equal padding inside the recommendation box */
+.ri-recommendation { padding-bottom: 10px !important; }
