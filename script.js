@@ -141,8 +141,9 @@ let templateQueue = [];
 let plannedWorkouts = [];
 let planExercises = [];
 let selectedTemplateId = null;
-let chartAnimId = null;   // allows cancelling in-progress chart animation
-let chartState  = null;   // latest chart data for hover re-animation
+let chartAnimId = null;
+let chartState  = null;
+let editingWorkoutId = null; // set when editing an existing workout
 let calendarYear  = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
@@ -318,6 +319,10 @@ function setupEventListeners() {
         if (currentDetailWorkoutId) startWorkoutFromId(currentDetailWorkoutId);
     });
     if (clearBtn) clearBtn.addEventListener('click', resetAllData);
+    // Search filter for history
+    const historySearch = document.getElementById('historySearch');
+    if (historySearch) historySearch.addEventListener('input', () => renderWorkoutHistory());
+
     if (startNewWorkoutBtn) startNewWorkoutBtn.addEventListener('click', () => showWorkoutLayoutModal());
     if (closeLayoutModalBtn) closeLayoutModalBtn.addEventListener('click', () => closeWorkoutLayoutModal());
     if (layoutModalOverlay) layoutModalOverlay.addEventListener('click', () => closeWorkoutLayoutModal());
@@ -514,7 +519,16 @@ function saveCurrentWorkout() {
         return;
     }
 
-    workouts.push({ ...currentWorkout });
+    const newPRs = checkForNewPRs(currentWorkout);
+
+    if (editingWorkoutId) {
+        const idx = workouts.findIndex(w => w.id === editingWorkoutId);
+        if (idx !== -1) workouts[idx] = { ...currentWorkout };
+        editingWorkoutId = null;
+        if (saveWorkoutBtn) saveWorkoutBtn.textContent = 'Save Workout';
+    } else {
+        workouts.push({ ...currentWorkout });
+    }
     saveToLocalStorage();
 
     // Reset form
@@ -528,6 +542,9 @@ function saveCurrentWorkout() {
 
     // Update displays
     renderStats();
+
+    // Show PR celebration if any new records were set
+    if (newPRs.length > 0) setTimeout(() => showPRCelebration(newPRs), 400);
 }
 
 function cancelCurrentWorkout() {
@@ -1377,8 +1394,20 @@ function renderWorkoutHistory() {
         return;
     }
 
-    // Sort by date descending
-    const sorted = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Apply search filter
+    const query = (document.getElementById('historySearch')?.value || '').toLowerCase().trim();
+    let sorted = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (query) {
+        sorted = sorted.filter(w =>
+            w.name.toLowerCase().includes(query) ||
+            w.exercises.some(e => e.exercise.toLowerCase().includes(query))
+        );
+    }
+
+    if (sorted.length === 0) {
+        workoutHistoryContainer.innerHTML = '<p class="empty-message">No workouts match your search.</p>';
+        return;
+    }
 
     sorted.forEach(workout => {
         const dateObj = new Date(workout.date);
@@ -1402,6 +1431,7 @@ function renderWorkoutHistory() {
             </div>
             <div class="workout-card-actions">
                 <button class="btn btn-start-history" onclick="event.stopPropagation(); startWorkoutFromId('${workout.id}')">▶ Start</button>
+                <button class="btn btn-edit-history" onclick="event.stopPropagation(); editWorkout('${workout.id}')">✏️ Edit</button>
                 <button class="btn btn-delete" onclick="event.stopPropagation(); deleteWorkout('${workout.id}')">Delete</button>
             </div>
         `;
@@ -1448,6 +1478,10 @@ function updateTotalStats() {
         }
     }
 
+    // Animate streak
+    const streakEl = document.getElementById('weekStreak');
+    animateCounter(streakEl, calculateWeekStreak(), v => Math.round(v).toString());
+
     // Animate total progress percentage
     const totalProgress = calculateTotalProgressPercentage();
     animateCounter(
@@ -1455,6 +1489,33 @@ function updateTotalStats() {
         totalProgress,
         v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
     );
+}
+
+function calculateWeekStreak() {
+    if (workouts.length === 0) return 0;
+
+    // Get Monday timestamp for any date
+    function weekStart(date) {
+        const d = new Date(date); d.setHours(0,0,0,0);
+        const day = d.getDay();
+        d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+        return d.getTime();
+    }
+
+    const weeksWithWorkout = new Set(
+        workouts.map(w => weekStart(new Date(w.date + 'T00:00:00')))
+    );
+
+    const todayWeek = weekStart(new Date());
+    let check = weeksWithWorkout.has(todayWeek) ? todayWeek : todayWeek - 7 * 86400000;
+    let streak = 0;
+
+    while (weeksWithWorkout.has(check)) {
+        streak++;
+        check -= 7 * 86400000;
+        if (streak > 104) break;
+    }
+    return streak;
 }
 
 // ========================================
@@ -2375,4 +2436,154 @@ function loadFromPlannedWorkout(plan) {
     }
 
     if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ========================================
+// FEATURE 2 — EDIT WORKOUT
+// ========================================
+
+function editWorkout(workoutId) {
+    const workout = workouts.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    editingWorkoutId = workoutId;
+
+    if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
+
+    createWorkoutSection.classList.remove('hidden');
+    if (workoutNameInput) workoutNameInput.value = workout.name;
+    if (workoutDateInput) workoutDateInput.value = workout.date;
+
+    // Load existing exercises into currentWorkout
+    currentWorkout = {
+        id: workout.id,
+        name: workout.name,
+        date: workout.date,
+        exercises: workout.exercises.map(e => ({
+            ...e,
+            sets: e.sets.map(s => ({ ...s }))
+        }))
+    };
+
+    // Skip the setup form, show exercises directly
+    document.getElementById('workoutSetupForm').classList.add('hidden');
+    addExerciseForm.classList.add('hidden');
+    updateCurrentWorkoutDisplay();
+
+    if (saveWorkoutBtn) saveWorkoutBtn.textContent = 'Update Workout';
+
+    createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ========================================
+// FEATURE 5 — EXPORT TO CSV
+// ========================================
+
+function exportToCSV() {
+    if (workouts.length === 0) {
+        alert('No workouts to export.');
+        return;
+    }
+
+    const rows = [
+        ['Date', 'Workout Name', 'Exercise', 'Muscle Group', 'Set', 'Weight (lbs)', 'Reps', 'Est. 1RM (lbs)']
+    ];
+
+    const sorted = [...workouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach(workout => {
+        workout.exercises.forEach(exercise => {
+            exercise.sets.forEach((set, i) => {
+                rows.push([
+                    workout.date,
+                    workout.name,
+                    exercise.exercise,
+                    exercise.muscleGroup || '',
+                    i + 1,
+                    set.weight,
+                    set.reps,
+                    epley1RM(set.weight, set.reps).toFixed(1)
+                ]);
+            });
+        });
+    });
+
+    const csv = rows.map(row =>
+        row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')
+    ).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'workout-history-' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ========================================
+// FEATURE 9 — PR CELEBRATION
+// ========================================
+
+function checkForNewPRs(workout) {
+    const allPrev = getAllExerciseEntries(workouts.filter(w => w.id !== workout.id));
+    const prevBestByExercise = {};
+    allPrev.forEach(e => {
+        if (!prevBestByExercise[e.exercise] || e.best1RM > prevBestByExercise[e.exercise]) {
+            prevBestByExercise[e.exercise] = e.best1RM;
+        }
+    });
+
+    const newPRs = [];
+    workout.exercises.forEach(exercise => {
+        const newBest1RM = getBest1RM(exercise.sets);
+        const prevBest   = prevBestByExercise[exercise.exercise] || 0;
+
+        if (newBest1RM > prevBest) {
+            // Find the actual set with the highest 1RM
+            const bestSet = exercise.sets.reduce((best, set) =>
+                epley1RM(set.weight, set.reps) > epley1RM(best.weight, best.reps) ? set : best
+            );
+            newPRs.push({
+                exercise: exercise.exercise,
+                weight: bestSet.weight,
+                reps: bestSet.reps,
+                est1RM: newBest1RM
+            });
+        }
+    });
+    return newPRs;
+}
+
+function showPRCelebration(prs) {
+    if (!prs.length) return;
+
+    // Remove any existing toast
+    const existing = document.getElementById('prToast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'prToast';
+    toast.className = 'pr-toast';
+
+    const plural = prs.length > 1 ? 's' : '';
+    toast.innerHTML =
+        '<div class="pr-toast-header">🎉 New Personal Record' + plural + '!</div>' +
+        prs.map(pr =>
+            '<div class="pr-toast-item">🏆 ' + pr.exercise + ': ' +
+            pr.weight + ' lbs × ' + pr.reps + ' reps' +
+            '<span class="pr-toast-1rm">Est. 1RM: ' + pr.est1RM.toFixed(1) + ' lbs</span></div>'
+        ).join('');
+
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('pr-toast-show'));
+    });
+
+    setTimeout(() => {
+        toast.classList.add('pr-toast-hide');
+        setTimeout(() => toast.remove(), 500);
+    }, 5000);
 }

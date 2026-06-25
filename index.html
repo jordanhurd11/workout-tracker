@@ -106,6 +106,12 @@
                             <p id="workoutDaysLabel" class="stat-card-sublabel"></p>
                         </div>
                         <div class="stat-card">
+                            <div class="stat-icon-badge stat-badge-orange">🔥</div>
+                            <div class="stat-card-label">Week Streak</div>
+                            <p id="weekStreak" class="stat-value">0</p>
+                            <div class="stat-card-sublabel">consecutive weeks</div>
+                        </div>
+                        <div class="stat-card">
                             <div class="stat-icon-badge stat-badge-purple">📈</div>
                             <div class="stat-card-label">Progress</div>
                             <p id="totalProgress" class="stat-value">+0%</p>
@@ -149,7 +155,11 @@
                 <section class="history-section">
                     <h2>Workout History</h2>
                     <div class="history-controls">
-                        <button id="clearBtn" class="btn btn-danger">Clear All History</button>
+                        <input type="text" id="historySearch" class="history-search-input" placeholder="🔍  Search workouts or exercises...">
+                        <div class="history-btn-group">
+                            <button id="exportBtn" class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
+                            <button id="clearBtn" class="btn btn-danger">Clear All History</button>
+                        </div>
                     </div>
                     <div id="workoutHistory" class="workout-history">
                         <p class="empty-message">No workouts yet. Add one to get started!</p>
