@@ -3561,13 +3561,13 @@ function renderRadarInsights(el, data) {
         '<div class="ri-item">',
         '<div class="ri-label">🏆 Strongest Muscle Group</div>',
         '<div class="ri-value" style="color:' + sColor + '">' + strongest.name + '</div>',
-        '<div class="ri-sub" style="color:' + sColor + '">' + (strongest.value>=0?'+':'') + strongest.value.toFixed(1) + '% Est. 1RM Improvement</div>',
+        '<div class="ri-sub" style="color:' + sColor + '">' + (strongest.value>=0?'+':'') + strongest.value.toFixed(1) + '%</div>',
         '</div>',
 
         '<div class="ri-item">',
         '<div class="ri-label">📉 Needs Attention</div>',
         '<div class="ri-value" style="color:' + wColor + '">' + weakest.name + '</div>',
-        '<div class="ri-sub" style="color:' + wColor + '">' + (weakest.value>=0?'+':'') + weakest.value.toFixed(1) + '% Est. 1RM Improvement</div>',
+        '<div class="ri-sub" style="color:' + wColor + '">' + (weakest.value>=0?'+':'') + weakest.value.toFixed(1) + '%</div>',
         '</div>',
 
         '<div class="ri-item">',
@@ -3606,7 +3606,7 @@ function setupRadarHover(canvas) {
             tt.innerHTML =
                 '<div class="rtt-name">' + found.name + '</div>' +
                 '<div class="rtt-val">'  + (found.value>=0?'+':'') + found.value.toFixed(1) + '%</div>' +
-                '<div class="rtt-note">Est. 1RM Improvement</div>';
+                '';
             tt.style.display = 'block';
             tt.style.left = (e.clientX + 14) + 'px';
             tt.style.top  = (e.clientY - 10) + 'px';
