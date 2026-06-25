@@ -864,6 +864,120 @@ function drawMuscleGroupRadarChart() {
 // 12C. RENDER MUSCLE GROUP PROGRESS
 // ========================================
 
+// Returns time-series percent change data for one muscle group
+function getMuscleGroupProgressOverTime(muscle) {
+    const allEntries = getAllExerciseEntries(workouts);
+    const muscleEntries = allEntries.filter(e => e.muscleGroup === muscle);
+    if (muscleEntries.length < 2) return null;
+
+    const firstEver = buildFirstEverMap(muscleEntries);
+    const uniqueDates = [...new Set(muscleEntries.map(e => e.workoutDate))].sort();
+    if (uniqueDates.length < 2) return null;
+
+    const percentages = uniqueDates.map(date => {
+        let total = 0;
+        Object.keys(firstEver).forEach(exercise => {
+            const base = firstEver[exercise];
+            const later = muscleEntries.filter(e =>
+                e.exercise === exercise && e.workoutDate > base.date && e.workoutDate <= date
+            );
+            if (!later.length) return;
+            const lastDate = later.reduce((m, e) => e.workoutDate > m ? e.workoutDate : m, later[0].workoutDate);
+            const best = Math.max(...later.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
+            if (base.best1RM > 0) total += ((best - base.best1RM) / base.best1RM) * 100;
+        });
+        return total;
+    });
+
+    return { dates: uniqueDates, percentages };
+}
+
+// Draw mini neon-green chart into a canvas element; animate=true plays left-to-right reveal
+function drawMiniChart(canvas, data, animate) {
+    if (!canvas || !data) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.offsetWidth || 260;
+    const h = canvas.offsetHeight || 72;
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const { dates, percentages } = data;
+    const pad = { top: 6, right: 6, bottom: 6, left: 6 };
+    const cw = w - pad.left - pad.right;
+    const ch = h - pad.top - pad.bottom;
+
+    const maxP = Math.max(...percentages, 0.1);
+    const minP = Math.min(...percentages, 0);
+    const buf  = (maxP - minP) * 0.2 || 1;
+    const pMax = maxP + buf;
+    const pMin = minP - buf;
+    const pRange = pMax - pMin;
+
+    const getX = i => pad.left + (cw / Math.max(dates.length - 1, 1)) * i;
+    const getY = p => pad.top + ((pMax - p) / pRange) * ch;
+    const pts = percentages.map((p, i) => ({ x: getX(i), y: getY(p) }));
+
+    function drawCurve() {
+        if (pts.length === 2) { ctx.lineTo(pts[1].x, pts[1].y); return; }
+        const t = 0.35;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = pts[Math.max(i-1,0)], p1 = pts[i];
+            const p2 = pts[i+1], p3 = pts[Math.min(i+2, pts.length-1)];
+            ctx.bezierCurveTo(
+                p1.x+(p2.x-p0.x)*t, p1.y+(p2.y-p0.y)*t,
+                p2.x-(p3.x-p1.x)*t, p2.y-(p3.y-p1.y)*t,
+                p2.x, p2.y
+            );
+        }
+    }
+
+    const NEON = '#39ff8a';
+    const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+    grad.addColorStop(0,   'rgba(57,255,138,0.35)');
+    grad.addColorStop(1,   'rgba(57,255,138,0)');
+
+    function paint(progress) {
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, pad.left + cw * progress, h);
+        ctx.clip();
+
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, h - pad.bottom);
+        ctx.lineTo(pts[0].x, pts[0].y);
+        drawCurve();
+        ctx.lineTo(pts[pts.length-1].x, h - pad.bottom);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        drawCurve();
+        ctx.strokeStyle = NEON;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    if (!animate) { paint(1); return; }
+
+    const DURATION = 1000;
+    let start = null;
+    function frame(ts) {
+        if (!start) start = ts;
+        const t = Math.min((ts - start) / DURATION, 1);
+        paint(1 - Math.pow(1 - t, 3));
+        if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+}
+
 function renderMuscleGroupProgress() {
     const container = document.getElementById('muscleGroupStats');
     if (!container) return;
@@ -880,8 +994,9 @@ function renderMuscleGroupProgress() {
         const card = document.createElement('div');
         card.className = 'muscle-group-card';
 
-        const sign = group.totalPercentIncrease >= 0 ? '+' : '';
+        const sign        = group.totalPercentIncrease >= 0 ? '+' : '';
         const changeClass = group.totalPercentIncrease >= 0 ? 'positive' : 'negative';
+        const target      = group.totalPercentIncrease;
 
         const breakdown = group.exerciseChanges.length > 0
             ? group.exerciseChanges.map(ex => {
@@ -893,13 +1008,37 @@ function renderMuscleGroupProgress() {
               }).join('')
             : '<p class="empty-message" style="font-size:0.85em;margin:8px 0 0;">Need 2+ entries per exercise to show data.</p>';
 
-        card.innerHTML = `
-            <div class="muscle-group-card-name">${group.muscle}</div>
-            <div class="muscle-group-total-change ${changeClass}">${sign}${group.totalPercentIncrease.toFixed(1)}%</div>
-            <div class="muscle-group-exercises-breakdown">${breakdown}</div>
-        `;
+        // Build card HTML
+        const nameEl     = document.createElement('div');
+        nameEl.className = 'muscle-group-card-name';
+        nameEl.textContent = group.muscle;
 
+        const changeEl     = document.createElement('div');
+        changeEl.className = 'muscle-group-total-change ' + changeClass;
+        changeEl.textContent = sign + target.toFixed(1) + '%';
+
+        const miniCanvas     = document.createElement('canvas');
+        miniCanvas.className = 'muscle-mini-chart';
+
+        const breakdownEl     = document.createElement('div');
+        breakdownEl.className = 'muscle-group-exercises-breakdown';
+        breakdownEl.innerHTML = breakdown;
+
+        card.appendChild(nameEl);
+        card.appendChild(changeEl);
+        card.appendChild(miniCanvas);
+        card.appendChild(breakdownEl);
         container.appendChild(card);
+
+        // Calculate chart data and draw statically
+        const chartData = getMuscleGroupProgressOverTime(group.muscle);
+        setTimeout(() => drawMiniChart(miniCanvas, chartData, false), 0);
+
+        // On hover: animate counter + chart
+        card.addEventListener('mouseenter', () => {
+            animateCounter(changeEl, target, v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%', 700);
+            drawMiniChart(miniCanvas, chartData, true);
+        });
     });
 }
 
