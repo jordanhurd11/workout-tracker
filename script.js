@@ -350,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMuscleGroupProgress();
     } else if (currentPage === 'achievements') {
         renderPersonalRecords();
+        document.getElementById('prSearch')?.addEventListener('input', renderPersonalRecords);
     } else if (currentPage === 'calendar') {
         renderCalendarPage();
     }
@@ -1274,6 +1275,7 @@ function renderPersonalRecords() {
     const container = document.getElementById('personalRecords');
     if (!container) return;
 
+    const query = (document.getElementById('prSearch')?.value || '').toLowerCase().trim();
     const allEntries = getAllExerciseEntries(workouts);
 
     if (allEntries.length === 0) {
@@ -1298,14 +1300,20 @@ function renderPersonalRecords() {
         });
     });
 
-    // Group by muscle group
+    // Filter by search query, then group by muscle group
     const byMuscle = {};
-    Object.values(prByExercise).forEach(pr => {
-        if (!byMuscle[pr.muscleGroup]) byMuscle[pr.muscleGroup] = [];
-        byMuscle[pr.muscleGroup].push(pr);
-    });
+    Object.values(prByExercise)
+        .filter(pr => !query || pr.exercise.toLowerCase().includes(query))
+        .forEach(pr => {
+            if (!byMuscle[pr.muscleGroup]) byMuscle[pr.muscleGroup] = [];
+            byMuscle[pr.muscleGroup].push(pr);
+        });
 
     container.innerHTML = '';
+    if (Object.keys(byMuscle).length === 0) {
+        container.innerHTML = '<p class="empty-message">No exercises match your search.</p>';
+        return;
+    }
     Object.keys(byMuscle).sort().forEach(muscle => {
         const section = document.createElement('div');
         section.className = 'pr-muscle-group';
