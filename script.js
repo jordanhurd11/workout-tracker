@@ -150,6 +150,40 @@ const currentPage = document.body.getAttribute('data-page') || 'dashboard';
 const PLANNED_STORAGE_KEY = 'plannedWorkoutsData';
 
 // ========================================
+// THEME TOGGLE
+// ========================================
+
+function initTheme() {
+    if (localStorage.getItem('theme') === 'light') {
+        document.body.classList.add('light-mode');
+    }
+    updateThemeToggleUI();
+}
+
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-mode');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    updateThemeToggleUI();
+    // Redraw canvas charts with new background colour
+    if (currentPage === 'dashboard') {
+        drawChartFull();
+    } else if (currentPage === 'statistics') {
+        renderMuscleGroupProgress();
+    }
+}
+
+function updateThemeToggleUI() {
+    const isLight = document.body.classList.contains('light-mode');
+    const icon  = document.getElementById('themeIcon');
+    const label = document.getElementById('themeLabel');
+    if (icon)  icon.textContent  = isLight ? '🌙' : '☀️';
+    if (label) label.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+}
+
+function chartBg()    { return document.body.classList.contains('light-mode') ? '#ffffff' : '#1e1c35'; }
+function chartLabel() { return document.body.classList.contains('light-mode') ? '#9ca3af' : '#4e4c6a'; }
+
+// ========================================
 // ANIMATION HELPERS
 // ========================================
 
@@ -177,6 +211,7 @@ const STORAGE_KEY = 'workoutTrackerData';
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     loadFromLocalStorage();
     loadPlannedWorkouts();
 
@@ -1866,11 +1901,11 @@ function drawChartFull() {
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#1e1c35';
+    ctx.fillStyle = chartBg();
     ctx.fillRect(0, 0, width, height);
 
     // Y-axis labels
-    ctx.fillStyle = '#4e4c6a';
+    ctx.fillStyle = chartLabel();
     ctx.font = '11px -apple-system, sans-serif';
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
@@ -1886,7 +1921,7 @@ function drawChartFull() {
         ctx.save();
         ctx.translate(pt.x, height - pad.bottom + 8);
         ctx.rotate(-Math.PI / 4);
-        ctx.fillStyle = '#4e4c6a';
+        ctx.fillStyle = chartLabel();
         ctx.font = '10px -apple-system, sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(label, 0, 0);
@@ -1926,7 +1961,7 @@ function animateChartOnHover() {
     let animStart = null;
 
     function drawLabels() {
-        ctx.fillStyle = '#4e4c6a';
+        ctx.fillStyle = chartLabel();
         ctx.font = '11px -apple-system, sans-serif';
         ctx.textAlign = 'right';
         for (let i = 0; i <= 4; i++) {
@@ -1954,7 +1989,7 @@ function animateChartOnHover() {
         const eased = 1 - Math.pow(1 - t, 3);
 
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#1e1c35';
+        ctx.fillStyle = chartBg();
         ctx.fillRect(0, 0, width, height);
         drawLabels();
 

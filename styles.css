@@ -2391,3 +2391,102 @@ select option {
     border-radius: 6px;
     background: transparent;
 }
+
+/* ========================================
+   LIGHT MODE OVERRIDES
+   ======================================== */
+
+body.light-mode {
+    --light-bg:    #f3f4f6;
+    --card-bg:     #ffffff;
+    --text-dark:   #1f2937;
+    --text-light:  #6b7280;
+    --border-light:#e5e7eb;
+    --sidebar-bg:  #ffffff;
+    --bg-deep:     #f9fafb;
+}
+
+body.light-mode .sidebar {
+    box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+}
+
+body.light-mode .sidebar-logo { color: #1f2937; }
+
+body.light-mode .sidebar-menu-item:hover {
+    background: rgba(108,92,210,0.08);
+    color: var(--primary-blue);
+}
+
+body.light-mode header {
+    background: #ffffff;
+    border-bottom-color: #e5e7eb;
+}
+
+body.light-mode footer {
+    background: #f9fafb;
+    border-top-color: #e5e7eb;
+}
+
+body.light-mode .start-workout-card {
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+    border-color: rgba(108,92,210,0.3);
+    box-shadow: 0 8px 32px rgba(108,92,210,0.12);
+}
+
+body.light-mode .start-workout-card h3,
+body.light-mode .start-workout-card p { color: #3730a3; }
+
+body.light-mode .progress-chart-container { background: #ffffff; }
+
+body.light-mode .muscle-mini-chart { background: transparent; }
+
+body.light-mode .btn-cal-nav {
+    background: #f9fafb;
+    color: #6b7280;
+    border-color: #e5e7eb;
+}
+
+body.light-mode .cal-grey  { background: rgba(0,0,0,0.04); border-color: #e5e7eb; }
+body.light-mode .cal-green { background: rgba(34,197,94,0.12); }
+body.light-mode .cal-red   { background: rgba(239,68,68,0.10); }
+body.light-mode .cal-blue  { background: rgba(99,102,241,0.12); }
+
+body.light-mode .plan-modal-content,
+body.light-mode .workout-detail-content,
+body.light-mode .exercise-detail-content,
+body.light-mode .modal-content { background: #ffffff; border-color: #e5e7eb; }
+
+body.light-mode .past-workout-item,
+body.light-mode .workout-item,
+body.light-mode .stat-card,
+body.light-mode .muscle-group-card,
+body.light-mode .pr-card { background: #ffffff; border-color: #e5e7eb; }
+
+body.light-mode .stat-value { color: #1f2937; }
+
+body.light-mode input[type="text"],
+body.light-mode input[type="number"],
+body.light-mode input[type="date"],
+body.light-mode input[type="time"],
+body.light-mode select {
+    background: #f9fafb;
+    color: #1f2937;
+    border-color: #e5e7eb;
+}
+
+body.light-mode .workout-setup-form,
+body.light-mode .add-exercise-form,
+body.light-mode .exercise-sets-container,
+body.light-mode .current-workout-display,
+body.light-mode .calendar-section,
+body.light-mode .progress-chart-section,
+body.light-mode .stats-page-section,
+body.light-mode .calendar-page-section,
+body.light-mode .records-section { background: #ffffff; }
+
+body.light-mode .exercise-set-input-group { background: #f9fafb; }
+
+body.light-mode .plan-exercise-item,
+body.light-mode .btn-plan-template { background: #f9fafb; border-color: #e5e7eb; }
+
+body.light-mode .current-exercise-item { background: #f3f4f6; }
