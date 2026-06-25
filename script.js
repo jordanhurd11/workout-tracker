@@ -140,6 +140,7 @@ let currentWorkout = {
 let templateQueue = [];
 let plannedWorkouts = [];
 let planExercises = [];
+let selectedTemplateId = null;
 let calendarYear  = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
@@ -1904,6 +1905,8 @@ function setupCalendarListeners() {
 function openPlanModal(date) {
     const modal = document.getElementById('planWorkoutModal');
     if (!modal) return;
+
+    // Pre-fill date, clear other fields
     const dateStr = date.toISOString().split('T')[0];
     const di = document.getElementById('planDate');
     if (di) di.value = dateStr;
@@ -1911,9 +1914,54 @@ function openPlanModal(date) {
     if (ni) ni.value = '';
     const ti = document.getElementById('planTime');
     if (ti) ti.value = '';
+
+    // Reset exercise list and template selection
     planExercises = [];
+    selectedTemplateId = null;
     renderPlanExerciseList();
+
+    // Populate past workout template buttons
+    const pastList = document.getElementById('planPastWorkoutsList');
+    if (pastList) {
+        pastList.innerHTML = '';
+        const uniqueNames = [...new Set(workouts.map(w => w.name))];
+        if (uniqueNames.length === 0) {
+            pastList.innerHTML = '<p class="empty-message" style="font-size:0.82em;margin:0;">No past workouts yet</p>';
+        } else {
+            uniqueNames.forEach(name => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-plan-template';
+                btn.textContent = name;
+                btn.addEventListener('click', () => selectPlanTemplate(name, btn, pastList));
+                pastList.appendChild(btn);
+            });
+        }
+    }
+
     modal.classList.remove('hidden');
+}
+
+function selectPlanTemplate(workoutName, btn, container) {
+    // Find the most recent workout with this name
+    const template = [...workouts]
+        .filter(w => w.name === workoutName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (!template) return;
+
+    // Highlight selected button
+    container.querySelectorAll('.btn-plan-template').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+
+    // Auto-fill workout name
+    const ni = document.getElementById('planName');
+    if (ni) ni.value = workoutName;
+
+    // Store template ID so we can pre-fill weights when starting
+    selectedTemplateId = template.id;
+
+    // Show exercise names from that workout
+    planExercises = template.exercises.map(e => e.exercise);
+    renderPlanExerciseList();
 }
 
 function closePlanModal() {
@@ -1960,7 +2008,8 @@ function savePlan() {
         name: name.trim(),
         date: date,
         time: time || '',
-        exercises: planExercises.slice()
+        exercises: planExercises.slice(),
+        templateWorkoutId: selectedTemplateId || null
     });
     savePlannedWorkouts();
     closePlanModal();
@@ -1985,11 +2034,23 @@ function loadFromPlannedWorkout(plan) {
     if (workoutNameInput) workoutNameInput.value = plan.name;
     setDefaultDate();
     startNewWorkout();
+
+    if (plan.templateWorkoutId) {
+        // Created from a past workout — pre-fill weights/reps from that session
+        const template = workouts.find(w => w.id === plan.templateWorkoutId);
+        if (template) {
+            templateQueue = template.exercises.map(ex => ({ ...ex }));
+            prefillNextTemplateExercise();
+            if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+    }
+
+    // Manually planned exercises — exercise name pre-selected, weights/reps blank
     if (plan.exercises && plan.exercises.length > 0) {
-        templateQueue = plan.exercises.map(function(ex) {
-            return { exercise: ex, sets: [] };
-        });
+        templateQueue = plan.exercises.map(ex => ({ exercise: ex, sets: [] }));
         prefillNextTemplateExercise();
     }
+
     if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
 }

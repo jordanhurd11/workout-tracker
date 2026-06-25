@@ -82,6 +82,17 @@
                 <button class="btn btn-close" id="closePlanModalBtn">✕</button>
             </div>
             <div class="plan-modal-body">
+
+                <!-- Past workout templates -->
+                <div class="form-group">
+                    <label>Use a Past Workout <span class="plan-optional">(auto-fills name &amp; exercises)</span></label>
+                    <div id="planPastWorkoutsList" class="plan-past-list">
+                        <p class="empty-message" style="font-size:0.82em;">No past workouts yet</p>
+                    </div>
+                </div>
+
+                <div class="plan-divider-text">— or build manually —</div>
+
                 <div class="form-group">
                     <label for="planName">Workout Name</label>
                     <input type="text" id="planName" placeholder="e.g., Push Day, Leg Day">
