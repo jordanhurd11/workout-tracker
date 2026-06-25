@@ -3580,7 +3580,7 @@ function renderRadarInsights(el, data) {
         '</div>',
 
         '<div class="ri-item">',
-        '<div class="ri-label">⚖ Muscle Balance Score</div>',
+        '<div class="ri-label">⚖ Muscle Balance Score <span class="info-icon" data-tip="Measures how evenly all 8 muscle groups are progressing. Calculated as 100 minus the average deviation of each muscle from the overall mean. A score of 100 means every muscle is progressing at the exact same rate. The score drops as some muscles fall significantly behind others. Aim for 75+ for well-rounded development.">i</span></div>',
         '<div class="ri-value" style="color:' + balance.color + '">' + balance.score.toFixed(0) + '</div>',
         '<div class="ri-sub" style="color:' + balance.color + '">' + balance.rating + '</div>',
         '</div>',
