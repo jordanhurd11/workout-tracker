@@ -2729,3 +2729,22 @@ body.light-mode .exercise-dropdown-item { color: #1f2937; }
 body.light-mode .exercise-dropdown-item:hover { background: rgba(108,92,210,0.1); color: #1f2937; }
 body.light-mode .set-weight-edit,
 body.light-mode .set-reps-edit { background: #f9fafb; color: #1f2937; }
+
+/* Fix editable set rows — prevent global width:100% from stacking inputs */
+.current-set-edit-row {
+    flex-wrap: nowrap;
+}
+
+.current-set-edit-row .set-weight-edit,
+.current-set-edit-row .set-reps-edit {
+    width: 80px !important;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+/* Make the exercise list scrollable so all sets are reachable */
+.current-exercises-list {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
