@@ -76,6 +76,62 @@ const VOLUME_OPTIMAL_RANGES = {
     'Forearms':  { min:  4, max: 10 },
 };
 
+// ========================================
+// EXERCISE TYPE SYSTEM
+// ========================================
+
+const EXERCISE_TYPE_MAP = {
+    // Timed only
+    'Plank': 'timed', 'Side Plank': 'timed',
+    // Bodyweight only
+    'Crunch': 'bodyweight', 'Sit-Up': 'bodyweight', 'Cable Crunch': 'bodyweight',
+    'Hanging Leg Raise': 'bodyweight', 'Hanging Knee Raise': 'bodyweight',
+    'Russian Twist': 'bodyweight', 'Bicycle Crunch': 'bodyweight',
+    'Ab Wheel Rollout': 'bodyweight', 'Mountain Climbers': 'bodyweight',
+    // Optional weighted (BW or Weighted toggle)
+    'Pull-Up': 'optional_weighted', 'Chin-Up': 'optional_weighted',
+    'Push-Up': 'optional_weighted',
+    'Dips (Chest Focus)': 'optional_weighted', 'Dips (Tricep Focus)': 'optional_weighted',
+};
+
+function getExerciseType(name) { return EXERCISE_TYPE_MAP[name] || 'weighted'; }
+
+function getExerciseSetMode(sets) {
+    if (!sets || sets.length === 0) return 'weighted';
+    return sets[0].mode || 'weighted'; // backwards compat: no mode = weighted
+}
+
+function getProgressValue(sets) {
+    if (!sets || sets.length === 0) return 0;
+    const mode = getExerciseSetMode(sets);
+    if (mode === 'timed')     return Math.max(...sets.map(s => s.duration || 0));
+    if (mode === 'bodyweight') return Math.max(...sets.map(s => s.reps || 0));
+    // weighted — Epley 1RM (existing)
+    const wSets = sets.filter(s => s.weight > 0 && s.reps > 0);
+    return wSets.length ? Math.max(...wSets.map(s => epley1RM(s.weight, s.reps))) : 0;
+}
+
+function getProgressKey(exerciseName, mode) {
+    // Optional-weighted exercises track BW and weighted paths separately
+    if (getExerciseType(exerciseName) === 'optional_weighted') {
+        return exerciseName + ':' + (mode || 'weighted');
+    }
+    return exerciseName;
+}
+
+function formatSetForDisplay(set) {
+    const mode = set.mode || 'weighted';
+    if (mode === 'timed') {
+        const d = set.duration || 0;
+        const m = Math.floor(d / 60), s = d % 60;
+        return m > 0 ? m + 'm ' + s + 's' : d + ' sec';
+    }
+    if (mode === 'bodyweight') return 'BW × ' + (set.reps || 0) + ' reps';
+    // weighted — include +lbs label for optional_weighted
+    const prefix = set.mode === 'weighted' && set._optional ? '+' : '';
+    return prefix + (set.weight || 0) + ' lbs × ' + (set.reps || 0) + ' reps';
+}
+
 // VOLUME_MUSCLE_MAP: each exercise → single primary volume group
 const VOLUME_MUSCLE_MAP = {
     // Chest
@@ -206,8 +262,9 @@ let currentWorkout = {
     date: "",
     exercises: []
 };
-let templateQueue    = [];
-let pendingTemplate  = null; // exercises queued while user confirms date
+let templateQueue      = [];
+let pendingTemplate    = null;
+let currentExerciseMode = 'weighted'; // updated when user selects an exercise
 let plannedWorkouts  = [];
 let planExercises = [];
 let selectedTemplateId = null;
@@ -495,6 +552,37 @@ function selectExercise(value) {
     if (hidden) hidden.value = value;
     if (searchInput) searchInput.value = value;
     if (dropdown) dropdown.classList.add('hidden');
+
+    // Detect exercise type and update the mode toggle + reset mode
+    const type = getExerciseType(value);
+    if (type === 'optional_weighted') {
+        currentExerciseMode = 'bodyweight';
+        updateModeToggleUI(true, 'bodyweight');
+    } else {
+        currentExerciseMode = type === 'timed' ? 'timed' : (type === 'bodyweight' ? 'bodyweight' : 'weighted');
+        updateModeToggleUI(false);
+    }
+
+    // Re-render set inputs if number already entered
+    const n = parseInt(document.getElementById('exerciseNumSets')?.value);
+    if (n > 0) generateExerciseSetInputs(n);
+}
+
+function updateModeToggleUI(show, activeMode) {
+    const toggle = document.getElementById('exerciseModeToggle');
+    if (!toggle) return;
+    if (!show) { toggle.classList.add('hidden'); return; }
+    toggle.classList.remove('hidden');
+    document.getElementById('modeBtnBW')?.classList.toggle('mode-btn-active', activeMode === 'bodyweight');
+    document.getElementById('modeBtnWeighted')?.classList.toggle('mode-btn-active', activeMode === 'weighted');
+}
+
+function setExerciseMode(mode) {
+    currentExerciseMode = mode;
+    document.getElementById('modeBtnBW')?.classList.toggle('mode-btn-active', mode === 'bodyweight');
+    document.getElementById('modeBtnWeighted')?.classList.toggle('mode-btn-active', mode === 'weighted');
+    const n = parseInt(document.getElementById('exerciseNumSets')?.value);
+    if (n > 0) generateExerciseSetInputs(n);
 }
 
 // ========================================
@@ -612,8 +700,9 @@ function showAddExerciseForm() {
     const si = document.getElementById('exerciseSearchInput');
     if (si) si.value = '';
     if (exerciseNumSetsInput) exerciseNumSetsInput.value = '';
+    currentExerciseMode = 'weighted';
+    updateModeToggleUI(false);
 
-    // Scroll to the add exercise form so the user sees it immediately
     setTimeout(() => {
         if (addExerciseForm) addExerciseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -621,37 +710,41 @@ function showAddExerciseForm() {
 
 function generateExerciseSetInputs(numberOfSets) {
     exerciseSetsContainer.innerHTML = '';
-
     for (let i = 1; i <= numberOfSets; i++) {
-        const setGroup = document.createElement('div');
-        setGroup.className = 'exercise-set-input-group';
-
-        setGroup.innerHTML = `
-            <div class="exercise-set-number">Set ${i}</div>
-            <div class="form-group">
-                <label for="ex-weight-${i}">Weight (lbs)</label>
-                <input 
-                    type="number" 
-                    id="ex-weight-${i}" 
-                    class="exercise-set-weight"
-                    min="0" 
-                    step="0.5"
-                    required
-                >
-            </div>
-            <div class="form-group">
-                <label for="ex-reps-${i}">Reps</label>
-                <input 
-                    type="number" 
-                    id="ex-reps-${i}" 
-                    class="exercise-set-reps"
-                    min="1"
-                    required
-                >
-            </div>
-        `;
-
-        exerciseSetsContainer.appendChild(setGroup);
+        const g = document.createElement('div');
+        g.className = 'exercise-set-input-group';
+        if (currentExerciseMode === 'timed') {
+            g.innerHTML = `
+                <div class="exercise-set-number">Set ${i}</div>
+                <div class="form-group timed-input">
+                    <label for="ex-minutes-${i}">Min</label>
+                    <input type="number" id="ex-minutes-${i}" class="exercise-set-minutes" min="0" value="0">
+                </div>
+                <div class="form-group timed-input">
+                    <label for="ex-seconds-${i}">Sec</label>
+                    <input type="number" id="ex-seconds-${i}" class="exercise-set-seconds" min="0" max="59" value="0">
+                </div>`;
+        } else if (currentExerciseMode === 'bodyweight') {
+            g.innerHTML = `
+                <div class="exercise-set-number">Set ${i}</div>
+                <div class="bw-mode-label">Bodyweight</div>
+                <div class="form-group">
+                    <label for="ex-reps-${i}">Reps</label>
+                    <input type="number" id="ex-reps-${i}" class="exercise-set-reps" min="1">
+                </div>`;
+        } else {
+            g.innerHTML = `
+                <div class="exercise-set-number">Set ${i}</div>
+                <div class="form-group">
+                    <label for="ex-weight-${i}">Weight (lbs)</label>
+                    <input type="number" id="ex-weight-${i}" class="exercise-set-weight" min="0" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="ex-reps-${i}">Reps</label>
+                    <input type="number" id="ex-reps-${i}" class="exercise-set-reps" min="1">
+                </div>`;
+        }
+        exerciseSetsContainer.appendChild(g);
     }
 }
 
@@ -665,18 +758,27 @@ function addExerciseToCurrentWorkout() {
         return;
     }
 
-    // Collect all sets
     const sets = [];
-    for (let i = 1; i <= numSets; i++) {
-        const weight = parseFloat(document.getElementById(`ex-weight-${i}`).value);
-        const reps = parseInt(document.getElementById(`ex-reps-${i}`).value);
-
-        if (!weight || !reps) {
-            alert(`Please fill in all fields for Set ${i}`);
-            return;
+    const groups = exerciseSetsContainer.querySelectorAll('.exercise-set-input-group');
+    for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const setNum = i + 1;
+        if (currentExerciseMode === 'timed') {
+            const mins = parseInt(g.querySelector('.exercise-set-minutes')?.value) || 0;
+            const secs = parseInt(g.querySelector('.exercise-set-seconds')?.value) || 0;
+            const duration = mins * 60 + secs;
+            if (duration <= 0) { alert('Please enter a duration for Set ' + setNum); return; }
+            sets.push({ duration, mode: 'timed' });
+        } else if (currentExerciseMode === 'bodyweight') {
+            const reps = parseInt(g.querySelector('.exercise-set-reps')?.value);
+            if (!reps || reps <= 0) { alert('Please enter reps for Set ' + setNum); return; }
+            sets.push({ reps, mode: 'bodyweight' });
+        } else {
+            const weight = parseFloat(g.querySelector('.exercise-set-weight')?.value);
+            const reps   = parseInt(g.querySelector('.exercise-set-reps')?.value);
+            if (!weight || !reps) { alert('Please fill in all fields for Set ' + setNum); return; }
+            sets.push({ weight, reps, mode: 'weighted' });
         }
-
-        sets.push({ weight, reps });
     }
 
     // Add exercise to current workout
@@ -720,25 +822,52 @@ function updateCurrentWorkoutDisplay() {
         setsEl.className = 'current-sets-edit';
 
         exercise.sets.forEach((set, si) => {
-            const row = document.createElement('div');
+            const row  = document.createElement('div');
             row.className = 'current-set-edit-row';
-            row.innerHTML =
-                '<span class="set-label">Set ' + (si + 1) + '</span>' +
-                '<input type="number" class="set-weight-edit" value="' + set.weight + '" min="0" step="0.5" placeholder="lbs">' +
-                '<span class="set-unit">lbs ×</span>' +
-                '<input type="number" class="set-reps-edit" value="' + set.reps + '" min="1" placeholder="reps">' +
-                '<span class="set-unit">reps</span>';
+            const mode = set.mode || 'weighted';
 
-            // Live-update currentWorkout when user edits
-            row.querySelector('.set-weight-edit').addEventListener('input', function() {
-                const v = parseFloat(this.value);
-                if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].weight = v;
-            });
-            row.querySelector('.set-reps-edit').addEventListener('input', function() {
-                const v = parseInt(this.value);
-                if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].reps = v;
-            });
-
+            if (mode === 'timed') {
+                const d = set.duration || 0;
+                row.innerHTML =
+                    '<span class="set-label">Set ' + (si+1) + '</span>' +
+                    '<input type="number" class="set-weight-edit" value="' + Math.floor(d/60) + '" min="0" placeholder="min" style="width:60px!important">' +
+                    '<span class="set-unit">m</span>' +
+                    '<input type="number" class="set-reps-edit" value="' + (d%60) + '" min="0" max="59" placeholder="sec" style="width:60px!important">' +
+                    '<span class="set-unit">s</span>';
+                row.querySelector('.set-weight-edit').addEventListener('input', function() {
+                    const m = parseInt(this.value)||0, s = parseInt(row.querySelector('.set-reps-edit').value)||0;
+                    currentWorkout.exercises[exIdx].sets[si].duration = m*60+s;
+                });
+                row.querySelector('.set-reps-edit').addEventListener('input', function() {
+                    const m = parseInt(row.querySelector('.set-weight-edit').value)||0, s = parseInt(this.value)||0;
+                    currentWorkout.exercises[exIdx].sets[si].duration = m*60+s;
+                });
+            } else if (mode === 'bodyweight') {
+                row.innerHTML =
+                    '<span class="set-label">Set ' + (si+1) + '</span>' +
+                    '<span class="set-unit">BW ×</span>' +
+                    '<input type="number" class="set-reps-edit" value="' + (set.reps||'') + '" min="1" placeholder="reps">' +
+                    '<span class="set-unit">reps</span>';
+                row.querySelector('.set-reps-edit').addEventListener('input', function() {
+                    const v = parseInt(this.value);
+                    if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].reps = v;
+                });
+            } else {
+                row.innerHTML =
+                    '<span class="set-label">Set ' + (si+1) + '</span>' +
+                    '<input type="number" class="set-weight-edit" value="' + (set.weight||'') + '" min="0" step="0.5" placeholder="lbs">' +
+                    '<span class="set-unit">lbs ×</span>' +
+                    '<input type="number" class="set-reps-edit" value="' + (set.reps||'') + '" min="1" placeholder="reps">' +
+                    '<span class="set-unit">reps</span>';
+                row.querySelector('.set-weight-edit').addEventListener('input', function() {
+                    const v = parseFloat(this.value);
+                    if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].weight = v;
+                });
+                row.querySelector('.set-reps-edit').addEventListener('input', function() {
+                    const v = parseInt(this.value);
+                    if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].reps = v;
+                });
+            }
             setsEl.appendChild(row);
         });
 
@@ -833,24 +962,26 @@ function epley1RM(weight, reps) {
 
 function getBest1RM(sets) {
     if (!sets || sets.length === 0) return 0;
-    return Math.max(...sets.map(set => epley1RM(set.weight, set.reps)));
+    const wSets = sets.filter(s => (s.mode || 'weighted') === 'weighted' && s.weight > 0 && s.reps > 0);
+    return wSets.length ? Math.max(...wSets.map(s => epley1RM(s.weight, s.reps))) : 0;
 }
 
 // For each exercise: find the first-ever workout date, then take the highest
 // Epley 1RM across ALL sets from ALL workouts on that date.
 // Returns { exercise -> { date, best1RM } }
 function buildFirstEverMap(allEntries) {
-    const byExercise = {};
+    const byKey = {};
     allEntries.forEach(e => {
-        if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
-        byExercise[e.exercise].push(e);
+        const k = e.progressKey || e.exercise;
+        if (!byKey[k]) byKey[k] = [];
+        byKey[k].push(e);
     });
     const map = {};
-    Object.keys(byExercise).forEach(ex => {
-        const entries = byExercise[ex];
+    Object.keys(byKey).forEach(k => {
+        const entries   = byKey[k];
         const firstDate = entries.reduce((min, e) => e.workoutDate < min ? e.workoutDate : min, entries[0].workoutDate);
-        const best1RM = Math.max(...entries.filter(e => e.workoutDate === firstDate).map(e => e.best1RM));
-        map[ex] = { date: firstDate, best1RM };
+        const bestPV    = Math.max(...entries.filter(e => e.workoutDate === firstDate).map(e => e.progressValue || e.best1RM || 0));
+        map[k] = { date: firstDate, best1RM: bestPV, progressValue: bestPV };
     });
     return map;
 }
@@ -861,21 +992,25 @@ function buildFirstEverMap(allEntries) {
 
 function getAllExerciseEntries(workoutsArray) {
     const entries = [];
-
     workoutsArray.forEach(workout => {
         workout.exercises.forEach(exercise => {
+            const mode = getExerciseSetMode(exercise.sets);
+            const pv   = getProgressValue(exercise.sets);
+            const pkey = getProgressKey(exercise.exercise, mode);
             entries.push({
-                exercise: exercise.exercise,
-                muscleGroup: exercise.muscleGroup,
-                workoutName: workout.name,
-                workoutDate: workout.date,
-                sets: exercise.sets,
+                exercise:      exercise.exercise,
+                muscleGroup:   exercise.muscleGroup,
+                workoutName:   workout.name,
+                workoutDate:   workout.date,
+                sets:          exercise.sets,
                 highestWeight: getHighestWeightFromSets(exercise.sets),
-                best1RM: getBest1RM(exercise.sets)
+                best1RM:       getBest1RM(exercise.sets),
+                progressValue: pv,
+                exerciseMode:  mode,
+                progressKey:   pkey
             });
         });
     });
-
     return entries;
 }
 
@@ -1006,24 +1141,26 @@ function getMuscleGroupPercentChanges() {
     allEntries.forEach(e => {
         const muscle = e.muscleGroup;
         if (!byMuscleExercise[muscle]) byMuscleExercise[muscle] = {};
-        if (!byMuscleExercise[muscle][e.exercise]) byMuscleExercise[muscle][e.exercise] = [];
-        byMuscleExercise[muscle][e.exercise].push(e);
+        const k = e.progressKey || e.exercise;
+        if (!byMuscleExercise[muscle][k]) byMuscleExercise[muscle][k] = [];
+        byMuscleExercise[muscle][k].push(e);
     });
 
     return Object.keys(byMuscleExercise).map(muscle => {
         let totalPercentIncrease = 0;
         const exerciseChanges = [];
 
-        Object.keys(byMuscleExercise[muscle]).forEach(exercise => {
-            const base = firstEver[exercise];
-            const entries = byMuscleExercise[muscle][exercise].filter(e => e.workoutDate > base.date);
+        Object.keys(byMuscleExercise[muscle]).forEach(key => {
+            const base    = firstEver[key];
+            if (!base) return;
+            const entries = byMuscleExercise[muscle][key].filter(e => e.workoutDate > base.date);
             if (entries.length === 0) return;
-            const lastDate = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
-            const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
-            if (base.best1RM > 0) {
-                const pct = ((latestBest - base.best1RM) / base.best1RM) * 100;
+            const lastDate   = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
+            const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.progressValue || 0));
+            if (base.progressValue > 0) {
+                const pct = ((latestBest - base.progressValue) / base.progressValue) * 100;
                 totalPercentIncrease += pct;
-                exerciseChanges.push({ exercise, percentChange: pct });
+                exerciseChanges.push({ exercise: key, percentChange: pct });
             }
         });
 
@@ -1193,15 +1330,15 @@ function getMuscleGroupProgressOverTime(muscle) {
 
     const percentages = uniqueDates.map(date => {
         let total = 0;
-        Object.keys(firstEver).forEach(exercise => {
-            const base = firstEver[exercise];
+        Object.keys(firstEver).forEach(k => {
+            const base = firstEver[k];
             const later = muscleEntries.filter(e =>
-                e.exercise === exercise && e.workoutDate > base.date && e.workoutDate <= date
+                (e.progressKey || e.exercise) === k && e.workoutDate > base.date && e.workoutDate <= date
             );
             if (!later.length) return;
             const lastDate = later.reduce((m, e) => e.workoutDate > m ? e.workoutDate : m, later[0].workoutDate);
-            const best = Math.max(...later.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
-            if (base.best1RM > 0) total += ((best - base.best1RM) / base.best1RM) * 100;
+            const best = Math.max(...later.filter(e => e.workoutDate === lastDate).map(e => e.progressValue || 0));
+            if (base.progressValue > 0) total += ((best - base.progressValue) / base.progressValue) * 100;
         });
         return total;
     });
@@ -1462,7 +1599,7 @@ function openExerciseDetail(exerciseName) {
             <div class="exercise-workout-item-date">${entry.workoutName} - ${dateStr}</div>
             <div class="exercise-workout-item-1rm">Highest: ${entry.highestWeight} lbs</div>
             <div class="exercise-workout-item-sets">
-                ${entry.sets.map((set, i) => `Set ${i + 1}: ${set.weight} lbs × ${set.reps} reps`).join(' | ')}
+                ${entry.sets.map((set, i) => `Set ${i + 1}: ${formatSetForDisplay(set)}`).join(' | ')}
             </div>
         `;
 
@@ -1507,7 +1644,7 @@ function openWorkoutDetail(workoutId) {
             <p class="workout-detail-exercise-muscle">${exercise.muscleGroup}</p>
             <div class="workout-detail-exercise-sets">
                 ${exercise.sets.map((set, i) => 
-                    `<div class="workout-detail-set">Set ${i + 1}: ${set.weight} lbs × ${set.reps} reps</div>`
+                    `<div class="workout-detail-set">Set ${i + 1}: ${formatSetForDisplay(set)}</div>`
                 ).join('')}
             </div>
         `;
@@ -1978,22 +2115,34 @@ function useWorkoutTemplate(workoutName) {
 
 function prefillNextTemplateExercise() {
     if (templateQueue.length === 0) return;
-
     const exercise = templateQueue.shift();
     selectExercise(exercise.exercise);
 
     if (exercise.sets && exercise.sets.length > 0) {
-        // Past workout template — pre-fill sets and weights
+        const mode = getExerciseSetMode(exercise.sets);
+        currentExerciseMode = mode;
+        updateModeToggleUI(getExerciseType(exercise.exercise) === 'optional_weighted', mode);
         if (exerciseNumSetsInput) exerciseNumSetsInput.value = exercise.sets.length;
         generateExerciseSetInputs(exercise.sets.length);
+        const groups = exerciseSetsContainer.querySelectorAll('.exercise-set-input-group');
         exercise.sets.forEach((set, i) => {
-            const w = document.getElementById('ex-weight-' + (i + 1));
-            const r = document.getElementById('ex-reps-'   + (i + 1));
-            if (w) w.value = set.weight;
-            if (r) r.value = set.reps;
+            const g = groups[i]; if (!g) return;
+            if (mode === 'timed' && set.duration != null) {
+                const mEl = g.querySelector('.exercise-set-minutes');
+                const sEl = g.querySelector('.exercise-set-seconds');
+                if (mEl) mEl.value = Math.floor(set.duration / 60);
+                if (sEl) sEl.value = set.duration % 60;
+            } else if (mode === 'bodyweight' && set.reps) {
+                const rEl = g.querySelector('.exercise-set-reps');
+                if (rEl) rEl.value = set.reps;
+            } else if (set.weight && set.reps) {
+                const wEl = g.querySelector('.exercise-set-weight');
+                const rEl = g.querySelector('.exercise-set-reps');
+                if (wEl) wEl.value = set.weight;
+                if (rEl) rEl.value = set.reps;
+            }
         });
     } else {
-        // Planned workout — exercise name only, user fills in sets
         if (exerciseNumSetsInput) exerciseNumSetsInput.value = '';
         if (exerciseSetsContainer) exerciseSetsContainer.innerHTML = '';
     }
@@ -2115,20 +2264,21 @@ function calculateTotalProgressPercentage() {
     if (allEntries.length === 0) return 0;
 
     const firstEver = buildFirstEverMap(allEntries);
-    const byExercise = {};
+    const byKey = {};
     allEntries.forEach(e => {
-        if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
-        byExercise[e.exercise].push(e);
+        const k = e.progressKey || e.exercise;
+        if (!byKey[k]) byKey[k] = [];
+        byKey[k].push(e);
     });
 
     let total = 0;
-    Object.keys(firstEver).forEach(exercise => {
-        const base = firstEver[exercise];
-        const entries = byExercise[exercise].filter(e => e.workoutDate > base.date);
-        if (entries.length === 0) return;
-        const lastDate = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
-        const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
-        if (base.best1RM > 0) total += ((latestBest - base.best1RM) / base.best1RM) * 100;
+    Object.keys(firstEver).forEach(k => {
+        const base    = firstEver[k];
+        const entries = (byKey[k] || []).filter(e => e.workoutDate > base.date);
+        if (!entries.length) return;
+        const lastDate   = entries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, entries[0].workoutDate);
+        const latestBest = Math.max(...entries.filter(e => e.workoutDate === lastDate).map(e => e.progressValue || 0));
+        if (base.progressValue > 0) total += ((latestBest - base.progressValue) / base.progressValue) * 100;
     });
 
     return total;
@@ -2179,14 +2329,13 @@ function renderProgressChart() {
     // At each date point: sum percent changes (first-ever vs best on most recent date up to here)
     const percentages = uniqueDates.map(date => {
         let total = 0;
-        Object.keys(firstEver).forEach(exercise => {
-            const base = firstEver[exercise];
-            // Only include entries strictly after the first date
-            const laterEntries = allEntries.filter(e => e.exercise === exercise && e.workoutDate > base.date && e.workoutDate <= date);
-            if (laterEntries.length === 0) return;
-            const lastDate = laterEntries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, laterEntries[0].workoutDate);
-            const latestBest = Math.max(...laterEntries.filter(e => e.workoutDate === lastDate).map(e => e.best1RM));
-            if (base.best1RM > 0) total += ((latestBest - base.best1RM) / base.best1RM) * 100;
+        Object.keys(firstEver).forEach(k => {
+            const base = firstEver[k];
+            const laterEntries = allEntries.filter(e => (e.progressKey || e.exercise) === k && e.workoutDate > base.date && e.workoutDate <= date);
+            if (!laterEntries.length) return;
+            const lastDate   = laterEntries.reduce((max, e) => e.workoutDate > max ? e.workoutDate : max, laterEntries[0].workoutDate);
+            const latestBest = Math.max(...laterEntries.filter(e => e.workoutDate === lastDate).map(e => e.progressValue || 0));
+            if (base.progressValue > 0) total += ((latestBest - base.progressValue) / base.progressValue) * 100;
         });
         return total;
     });

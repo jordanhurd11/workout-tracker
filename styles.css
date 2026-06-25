@@ -3528,3 +3528,59 @@ body.light-mode .ri-item { border-bottom-color: rgba(0,0,0,0.06); }
 
 /* Keep equal padding inside the recommendation box */
 .ri-recommendation { padding-bottom: 10px !important; }
+
+/* ========================================
+   EXERCISE TYPE SYSTEM
+   ======================================== */
+
+/* Mode toggle (shown for optional weighted exercises) */
+.exercise-mode-toggle { margin-bottom: 16px; }
+
+.mode-toggle-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 9px 16px;
+    border: 1.5px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-deep, #0a0918);
+    color: var(--text-light);
+    font-size: 0.88em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover { border-color: var(--primary-blue); color: var(--text-dark); }
+
+.mode-btn-active {
+    background: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* Bodyweight label inside set input group */
+.bw-mode-label {
+    grid-column: 1 / -1;
+    font-size: 0.8em;
+    color: var(--primary-blue);
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-style: italic;
+}
+
+/* Timed inputs side by side */
+.timed-input { flex: 1; }
+
+.exercise-set-input-group.timed-group {
+    grid-template-columns: auto 1fr 1fr;
+}
+
+/* Light mode */
+body.light-mode .mode-btn { background: #f9fafb; color: #374151; }
+body.light-mode .mode-btn-active { background: var(--primary-blue); color: #fff; }

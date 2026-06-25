@@ -78,6 +78,15 @@
                                 <input type="hidden" id="exerciseSelect" value="">
                             </div>
                         </div>
+                        <!-- Mode toggle — shown only for optional weighted exercises (e.g. Pull-Up) -->
+                        <div id="exerciseModeToggle" class="exercise-mode-toggle hidden">
+                            <label>Mode</label>
+                            <div class="mode-toggle-group">
+                                <button type="button" class="mode-btn mode-btn-active" id="modeBtnBW" onclick="setExerciseMode('bodyweight')">Bodyweight</button>
+                                <button type="button" class="mode-btn" id="modeBtnWeighted" onclick="setExerciseMode('weighted')">+ Weight</button>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label for="exerciseNumSets">Number of Sets</label>
                             <input type="number" id="exerciseNumSets" placeholder="4" min="1" max="20" required>
