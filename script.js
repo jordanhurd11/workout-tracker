@@ -141,11 +141,34 @@ let templateQueue = [];
 let plannedWorkouts = [];
 let planExercises = [];
 let selectedTemplateId = null;
+let lastSavedWorkoutId = null;  // tracks which card to animate in history
+let chartAnimId = null;         // allows cancelling in-progress chart animation
 let calendarYear  = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
 const currentPage = document.body.getAttribute('data-page') || 'dashboard';
 const PLANNED_STORAGE_KEY = 'plannedWorkoutsData';
+
+// ========================================
+// ANIMATION HELPERS
+// ========================================
+
+function animateCounter(element, target, formatter, duration) {
+    if (!element) return;
+    duration = duration || 700;
+    const startRaw = element.textContent.replace(/[^0-9.\-]/g, '');
+    const start = parseFloat(startRaw) || 0;
+    const startTime = performance.now();
+
+    function tick(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 2); // ease-out quad
+        const current = start + (target - start) * eased;
+        element.textContent = formatter(current);
+        if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
 
 const STORAGE_KEY = 'workoutTrackerData';
 
@@ -450,6 +473,7 @@ function saveCurrentWorkout() {
         return;
     }
 
+    lastSavedWorkoutId = currentWorkout.id;
     workouts.push({ ...currentWorkout });
     saveToLocalStorage();
 
@@ -1204,6 +1228,13 @@ function renderWorkoutHistory() {
         `;
 
         item.addEventListener('click', () => openWorkoutDetail(workout.id));
+
+        // Slide in the card that was just saved
+        if (workout.id === lastSavedWorkoutId) {
+            item.classList.add('workout-item-new');
+            lastSavedWorkoutId = null; // only animate once
+        }
+
         workoutHistoryContainer.appendChild(item);
     });
 }
@@ -1224,7 +1255,12 @@ function calculateWorkoutVolume(workout) {
 // ========================================
 
 function updateTotalStats() {
-    if (totalWorkoutsDisplay) totalWorkoutsDisplay.textContent = workouts.length;
+    // Animate total workouts count
+    animateCounter(
+        totalWorkoutsDisplay,
+        workouts.length,
+        v => Math.round(v).toString()
+    );
 
     const daysLabel = document.getElementById('workoutDaysLabel');
     if (daysLabel) {
@@ -1239,11 +1275,13 @@ function updateTotalStats() {
         }
     }
 
+    // Animate total progress percentage
     const totalProgress = calculateTotalProgressPercentage();
-    if (totalProgressDisplay) {
-        const sign = totalProgress >= 0 ? '+' : '';
-        totalProgressDisplay.textContent = sign + totalProgress.toFixed(1) + '%';
-    }
+    animateCounter(
+        totalProgressDisplay,
+        totalProgress,
+        v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+    );
 }
 
 // ========================================
@@ -1513,6 +1551,9 @@ function renderWorkoutCalendar() {
 
         const cell = document.createElement('div');
         cell.className = 'cal-day cal-' + status + (isToday ? ' cal-today' : '');
+        const mm = String(calendarMonth + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        cell.dataset.date = calendarYear + '-' + mm + '-' + dd;
 
         const numEl = document.createElement('div');
         numEl.className = 'cal-day-number';
@@ -1667,56 +1708,89 @@ function renderProgressChart() {
     }
 
     const NEON = '#39ff8a';
-
-    // Gradient fill — brighter near the top to simulate a natural glow under the line
     const grad = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
     grad.addColorStop(0.00, 'rgba(57, 255, 138, 0.38)');
     grad.addColorStop(0.18, 'rgba(57, 255, 138, 0.18)');
     grad.addColorStop(1.00, 'rgba(57, 255, 138, 0.00)');
 
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, height - pad.bottom);
-    ctx.lineTo(pts[0].x, pts[0].y);
-    drawCurveSegments();
-    ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    // Single clean neon stroke — no shadowBlur (avoids double-line artefact)
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    drawCurveSegments();
-    ctx.strokeStyle = NEON;
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // Y-axis labels — muted on dark bg
-    ctx.fillStyle = '#4e4c6a';
-    ctx.font = '11px -apple-system, sans-serif';
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= 4; i++) {
-        const p = pMax - (pRange / 4) * i;
-        const y = pad.top + (ch / 4) * i;
-        ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
+    function drawLabels() {
+        ctx.fillStyle = '#4e4c6a';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const p = pMax - (pRange / 4) * i;
+            const y = pad.top + (ch / 4) * i;
+            ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
+        }
+        pts.forEach((pt, i) => {
+            const d = new Date(uniqueDates[i]);
+            const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
+            ctx.save();
+            ctx.translate(pt.x, height - pad.bottom + 8);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillStyle = '#4e4c6a';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        });
     }
 
-    // Rotated date labels at every point
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    pts.forEach((pt, i) => {
-        const d = new Date(uniqueDates[i]);
-        const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
+    // Cancel any in-progress chart animation before starting a new one
+    if (chartAnimId) { cancelAnimationFrame(chartAnimId); chartAnimId = null; }
+
+    const ANIM_DURATION = 1200;
+    let animStart = null;
+
+    function frame(timestamp) {
+        if (!animStart) animStart = timestamp;
+        const t = Math.min((timestamp - animStart) / ANIM_DURATION, 1);
+        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+
+        // Redraw background and labels every frame
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#1e1c35';
+        ctx.fillRect(0, 0, width, height);
+        drawLabels();
+
+        // Clip chart area to expanding rect (line draws left → right)
         ctx.save();
-        ctx.translate(pt.x, height - pad.bottom + 8);
-        ctx.rotate(-Math.PI / 4);
-        ctx.fillStyle = '#4e4c6a';
-        ctx.font = '10px -apple-system, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(label, 0, 0);
+        ctx.beginPath();
+        ctx.rect(0, 0, pad.left + cw * eased, height);
+        ctx.clip();
+
+        // Gradient fill
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, height - pad.bottom);
+        ctx.lineTo(pts[0].x, pts[0].y);
+        drawCurveSegments();
+        ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Neon stroke
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        drawCurveSegments();
+        ctx.strokeStyle = NEON;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
         ctx.restore();
-    });
+
+        if (t < 1) {
+            chartAnimId = requestAnimationFrame(frame);
+        } else {
+            chartAnimId = null;
+        }
+    }
+
+    chartAnimId = requestAnimationFrame(frame);
 }
 
 console.log('Workout Tracker initialized successfully!');
@@ -1826,6 +1900,9 @@ function renderFullCalendar() {
 
         const cell = document.createElement('div');
         cell.className = 'cal-day cal-' + status + (isToday ? ' cal-today' : '');
+        const mm2 = String(calendarMonth + 1).padStart(2, '0');
+        const dd2 = String(day).padStart(2, '0');
+        cell.dataset.date = calendarYear + '-' + mm2 + '-' + dd2;
 
         const numEl = document.createElement('div');
         numEl.className = 'cal-day-number';
@@ -2011,6 +2088,7 @@ function savePlan() {
         exercises: planExercises.slice(),
         templateWorkoutId: selectedTemplateId || null
     });
+    const savedDate = date;
     savePlannedWorkouts();
     closePlanModal();
     if (currentPage === 'calendar') {
@@ -2018,6 +2096,15 @@ function savePlan() {
     } else {
         renderWorkoutCalendar();
     }
+
+    // Pulse the newly blue calendar day
+    requestAnimationFrame(() => {
+        const cell = document.querySelector('[data-date="' + savedDate + '"]');
+        if (cell) {
+            cell.classList.add('cal-pulse');
+            cell.addEventListener('animationend', () => cell.classList.remove('cal-pulse'), { once: true });
+        }
+    });
 }
 
 // ========================================
