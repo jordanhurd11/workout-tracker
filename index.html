@@ -70,10 +70,13 @@
                     <div id="addExerciseForm" class="add-exercise-form hidden">
                         <h3>Add Exercise to Workout</h3>
                         <div class="form-group">
-                            <label for="exerciseSelect">Exercise</label>
-                            <select id="exerciseSelect" required>
-                                <option value="">Select an exercise...</option>
-                            </select>
+                            <label for="exerciseSearchInput">Exercise</label>
+                            <div class="exercise-search-wrapper">
+                                <input type="text" id="exerciseSearchInput" class="exercise-search-input"
+                                    placeholder="Search exercises..." autocomplete="off">
+                                <div id="exerciseDropdown" class="exercise-dropdown hidden"></div>
+                                <input type="hidden" id="exerciseSelect" value="">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="exerciseNumSets">Number of Sets</label>

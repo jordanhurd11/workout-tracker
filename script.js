@@ -264,21 +264,58 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================================
 
 function populateExerciseDropdown() {
-    exerciseSelect.innerHTML = '<option value="">Select an exercise...</option>';
+    const dropdown = document.getElementById('exerciseDropdown');
+    if (!dropdown) return;
 
+    dropdown.innerHTML = '';
     Object.entries(EXERCISES_BY_MUSCLE).forEach(([muscle, exercises]) => {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = muscle;
-
-        exercises.forEach(exercise => {
-            const option = document.createElement('option');
-            option.value = exercise;
-            option.textContent = exercise;
-            optgroup.appendChild(option);
+        const groupEl = document.createElement('div');
+        groupEl.className = 'exercise-dropdown-group';
+        groupEl.textContent = muscle;
+        dropdown.appendChild(groupEl);
+        exercises.forEach(ex => {
+            const item = document.createElement('div');
+            item.className = 'exercise-dropdown-item';
+            item.textContent = ex;
+            item.addEventListener('mousedown', e => { e.preventDefault(); selectExercise(ex); });
+            dropdown.appendChild(item);
         });
-
-        exerciseSelect.appendChild(optgroup);
     });
+
+    const searchInput = document.getElementById('exerciseSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterExerciseDropdown);
+        searchInput.addEventListener('focus', () => { filterExerciseDropdown(); dropdown.classList.remove('hidden'); });
+        searchInput.addEventListener('blur',  () => { setTimeout(() => dropdown.classList.add('hidden'), 160); });
+    }
+}
+
+function filterExerciseDropdown() {
+    const dropdown   = document.getElementById('exerciseDropdown');
+    const searchInput = document.getElementById('exerciseSearchInput');
+    if (!dropdown || !searchInput) return;
+    const q = searchInput.value.toLowerCase().trim();
+    dropdown.classList.remove('hidden');
+    dropdown.querySelectorAll('.exercise-dropdown-item').forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    dropdown.querySelectorAll('.exercise-dropdown-group').forEach(group => {
+        let el = group.nextElementSibling; let visible = false;
+        while (el && !el.classList.contains('exercise-dropdown-group')) {
+            if (el.style.display !== 'none') visible = true;
+            el = el.nextElementSibling;
+        }
+        group.style.display = visible ? '' : 'none';
+    });
+}
+
+function selectExercise(value) {
+    const hidden = document.getElementById('exerciseSelect');
+    const searchInput = document.getElementById('exerciseSearchInput');
+    const dropdown = document.getElementById('exerciseDropdown');
+    if (hidden) hidden.value = value;
+    if (searchInput) searchInput.value = value;
+    if (dropdown) dropdown.classList.add('hidden');
 }
 
 // ========================================
@@ -383,8 +420,10 @@ function startNewWorkout() {
 function showAddExerciseForm() {
     addExerciseForm.classList.remove('hidden');
     exerciseSetsContainer.innerHTML = '';
-    exerciseSelect.value = '';
-    exerciseNumSetsInput.value = '';
+    if (exerciseSelect) exerciseSelect.value = '';
+    const si = document.getElementById('exerciseSearchInput');
+    if (si) si.value = '';
+    if (exerciseNumSetsInput) exerciseNumSetsInput.value = '';
 }
 
 function generateExerciseSetInputs(numberOfSets) {
@@ -424,7 +463,7 @@ function generateExerciseSetInputs(numberOfSets) {
 }
 
 function addExerciseToCurrentWorkout() {
-    const exercise = exerciseSelect.value.trim();
+    const exercise = (document.getElementById('exerciseSelect') || exerciseSelect || {}).value?.trim() || '';
     const muscleGroup = EXERCISE_TO_MUSCLE[exercise];
     const numSets = parseInt(exerciseNumSetsInput.value);
 
@@ -470,24 +509,56 @@ function addExerciseToCurrentWorkout() {
 function updateCurrentWorkoutDisplay() {
     currentExercisesList.innerHTML = '';
 
-    currentWorkout.exercises.forEach((exercise, index) => {
-        const setInfo = exercise.sets.map((set, i) => 
-            `Set ${i + 1}: ${set.weight} lbs × ${set.reps} reps`
-        ).join(' | ');
-
+    currentWorkout.exercises.forEach((exercise, exIdx) => {
         const item = document.createElement('div');
         item.className = 'current-exercise-item';
-        item.innerHTML = `
-            <div class="current-exercise-item-details">
-                <h4>${exercise.exercise}</h4>
-                <p class="current-exercise-item-muscle">${exercise.muscleGroup}</p>
-                <p class="current-exercise-item-sets">${setInfo}</p>
-            </div>
-            <div class="current-exercise-item-remove">
-                <button class="btn btn-delete" onclick="removeExerciseFromCurrentWorkout(${index})">Remove</button>
-            </div>
-        `;
 
+        const detailsEl = document.createElement('div');
+        detailsEl.className = 'current-exercise-item-details';
+
+        const nameEl = document.createElement('h4');
+        nameEl.textContent = exercise.exercise;
+
+        const muscleEl = document.createElement('p');
+        muscleEl.className = 'current-exercise-item-muscle';
+        muscleEl.textContent = exercise.muscleGroup;
+
+        const setsEl = document.createElement('div');
+        setsEl.className = 'current-sets-edit';
+
+        exercise.sets.forEach((set, si) => {
+            const row = document.createElement('div');
+            row.className = 'current-set-edit-row';
+            row.innerHTML =
+                '<span class="set-label">Set ' + (si + 1) + '</span>' +
+                '<input type="number" class="set-weight-edit" value="' + set.weight + '" min="0" step="0.5" placeholder="lbs">' +
+                '<span class="set-unit">lbs ×</span>' +
+                '<input type="number" class="set-reps-edit" value="' + set.reps + '" min="1" placeholder="reps">' +
+                '<span class="set-unit">reps</span>';
+
+            // Live-update currentWorkout when user edits
+            row.querySelector('.set-weight-edit').addEventListener('input', function() {
+                const v = parseFloat(this.value);
+                if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].weight = v;
+            });
+            row.querySelector('.set-reps-edit').addEventListener('input', function() {
+                const v = parseInt(this.value);
+                if (!isNaN(v)) currentWorkout.exercises[exIdx].sets[si].reps = v;
+            });
+
+            setsEl.appendChild(row);
+        });
+
+        detailsEl.appendChild(nameEl);
+        detailsEl.appendChild(muscleEl);
+        detailsEl.appendChild(setsEl);
+
+        const removeEl = document.createElement('div');
+        removeEl.className = 'current-exercise-item-remove';
+        removeEl.innerHTML = '<button class="btn btn-delete" onclick="removeExerciseFromCurrentWorkout(' + exIdx + ')">Remove</button>';
+
+        item.appendChild(detailsEl);
+        item.appendChild(removeEl);
         currentExercisesList.appendChild(item);
     });
 
@@ -1697,7 +1768,7 @@ function prefillNextTemplateExercise() {
     if (templateQueue.length === 0) return;
 
     const exercise = templateQueue.shift();
-    if (exerciseSelect) exerciseSelect.value = exercise.exercise;
+    selectExercise(exercise.exercise);
 
     if (exercise.sets && exercise.sets.length > 0) {
         // Past workout template — pre-fill sets and weights

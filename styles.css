@@ -2617,3 +2617,115 @@ body.light-mode .btn-plan-template:hover {
 /* Light mode overrides for new features */
 body.light-mode .history-search-input { background: #f9fafb; color: #1f2937; }
 body.light-mode .pr-toast { background: #ffffff; }
+
+/* ========================================
+   SEARCHABLE EXERCISE DROPDOWN
+   ======================================== */
+
+.exercise-search-wrapper { position: relative; }
+
+.exercise-search-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-deep, #0a0918);
+    color: var(--text-dark);
+    font-size: 1em;
+    transition: border-color 0.2s;
+}
+.exercise-search-input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(108,92,210,0.25);
+}
+
+.exercise-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 2000;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+}
+.exercise-dropdown.hidden { display: none; }
+
+.exercise-dropdown-group {
+    padding: 8px 12px 4px;
+    font-size: 0.7em;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.exercise-dropdown-item {
+    padding: 9px 14px;
+    font-size: 0.88em;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.exercise-dropdown-item:hover {
+    background: rgba(108,92,210,0.18);
+    color: #ffffff;
+}
+
+/* ========================================
+   EDITABLE SET ROWS IN WORKOUT DISPLAY
+   ======================================== */
+
+.current-sets-edit { margin-top: 10px; }
+
+.current-set-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+    flex-wrap: wrap;
+}
+
+.set-label {
+    font-size: 0.78em;
+    color: var(--text-light);
+    font-weight: 600;
+    min-width: 42px;
+}
+
+.set-weight-edit,
+.set-reps-edit {
+    width: 70px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    background: var(--bg-deep, #0a0918);
+    color: var(--text-dark);
+    font-size: 0.88em;
+    text-align: center;
+    transition: border-color 0.15s;
+}
+.set-weight-edit:focus,
+.set-reps-edit:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px rgba(108,92,210,0.2);
+}
+
+.set-unit { font-size: 0.78em; color: var(--text-light); }
+
+/* Light mode */
+body.light-mode .exercise-search-input { background: #f9fafb; color: #1f2937; }
+body.light-mode .exercise-dropdown { background: #ffffff; }
+body.light-mode .exercise-dropdown-group { background: #ffffff; }
+body.light-mode .exercise-dropdown-item { color: #1f2937; }
+body.light-mode .exercise-dropdown-item:hover { background: rgba(108,92,210,0.1); color: #1f2937; }
+body.light-mode .set-weight-edit,
+body.light-mode .set-reps-edit { background: #f9fafb; color: #1f2937; }
