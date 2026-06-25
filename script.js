@@ -206,8 +206,9 @@ let currentWorkout = {
     date: "",
     exercises: []
 };
-let templateQueue = [];
-let plannedWorkouts = [];
+let templateQueue    = [];
+let pendingTemplate  = null; // exercises queued while user confirms date
+let plannedWorkouts  = [];
 let planExercises = [];
 let selectedTemplateId = null;
 let chartAnimId = null;
@@ -592,7 +593,16 @@ function startNewWorkout() {
 
     // Hide setup form, show add exercise form
     document.getElementById('workoutSetupForm').classList.add('hidden');
-    showAddExerciseForm();
+
+    // If a template was waiting (started from history/calendar), load its exercises
+    if (pendingTemplate) {
+        templateQueue   = pendingTemplate;
+        pendingTemplate = null;
+        showAddExerciseForm();
+        prefillNextTemplateExercise();
+    } else {
+        showAddExerciseForm();
+    }
 }
 
 function showAddExerciseForm() {
@@ -802,8 +812,9 @@ function saveCurrentWorkout() {
 }
 
 function cancelCurrentWorkout() {
-    currentWorkout = { id: null, name: "", date: "", exercises: [] };
-    templateQueue = [];
+    currentWorkout  = { id: null, name: "", date: "", exercises: [] };
+    templateQueue   = [];
+    pendingTemplate = null;
     document.getElementById('workoutSetupForm').classList.remove('hidden');
     addExerciseForm.classList.add('hidden');
     currentWorkoutDisplay.classList.add('hidden');
@@ -1930,19 +1941,19 @@ function startWorkoutFromId(workoutId) {
     const template = workouts.find(w => w.id === workoutId);
     if (!template) return;
 
-    // Close any open modals
     if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
     closeWorkoutLayoutModal();
 
-    // Show the create section and pre-fill name + today's date
+    // Show setup form so user can confirm/change the date
     createWorkoutSection.classList.remove('hidden');
-    workoutNameInput.value = template.name;
+    if (workoutNameInput) workoutNameInput.value = template.name;
     setDefaultDate();
-    startNewWorkout();
+    document.getElementById('workoutSetupForm').classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
 
-    // Queue exercises for one-at-a-time editing
-    templateQueue = [...template.exercises];
-    prefillNextTemplateExercise();
+    // Store exercises — loaded after user clicks "Start Workout"
+    pendingTemplate = template.exercises.map(ex => ({ ...ex }));
 
     createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1953,13 +1964,16 @@ function useWorkoutTemplate(workoutName) {
 
     closeWorkoutLayoutModal();
     createWorkoutSection.classList.remove('hidden');
-    workoutNameInput.value = workoutName;
+    if (workoutNameInput) workoutNameInput.value = workoutName;
     setDefaultDate();
-    startNewWorkout();
+    document.getElementById('workoutSetupForm').classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
 
-    // Queue all template exercises so the user can review/edit each one
-    templateQueue = [...template.exercises];
-    prefillNextTemplateExercise();
+    // Store exercises — loaded after user clicks "Start Workout"
+    pendingTemplate = template.exercises.map(ex => ({ ...ex }));
+
+    createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
 }
 
 function prefillNextTemplateExercise() {
@@ -2691,23 +2705,18 @@ function loadFromPlannedWorkout(plan) {
     if (createWorkoutSection) createWorkoutSection.classList.remove('hidden');
     if (workoutNameInput) workoutNameInput.value = plan.name;
     setDefaultDate();
-    startNewWorkout();
+    document.getElementById('workoutSetupForm')?.classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
 
+    // Store exercises — loaded after user confirms date and clicks "Start Workout"
     if (plan.templateWorkoutId) {
-        // Created from a past workout — pre-fill weights/reps from that session
         const template = workouts.find(w => w.id === plan.templateWorkoutId);
         if (template) {
-            templateQueue = template.exercises.map(ex => ({ ...ex }));
-            prefillNextTemplateExercise();
-            if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
-            return;
+            pendingTemplate = template.exercises.map(ex => ({ ...ex }));
         }
-    }
-
-    // Manually planned exercises — exercise name pre-selected, weights/reps blank
-    if (plan.exercises && plan.exercises.length > 0) {
-        templateQueue = plan.exercises.map(ex => ({ exercise: ex, sets: [] }));
-        prefillNextTemplateExercise();
+    } else if (plan.exercises && plan.exercises.length > 0) {
+        pendingTemplate = plan.exercises.map(ex => ({ exercise: ex, sets: [] }));
     }
 
     if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
