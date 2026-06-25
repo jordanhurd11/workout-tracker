@@ -3365,3 +3365,6 @@ body.light-mode .info-icon::after { background: #ffffff; }
 
 /* Below-optimal badge (new status tier) */
 .vs-below { }
+
+/* Red warning icon in coaching insights */
+.coaching-warn .coaching-icon { color: #ef4444; }
