@@ -190,6 +190,40 @@ function chartLabel() { return document.body.classList.contains('light-mode') ? 
 // KEYBOARD SHORTCUTS
 // ========================================
 
+// ========================================
+// MOBILE SIDEBAR
+// ========================================
+
+function setupMobileSidebar() {
+    // Inject overlay behind sidebar
+    const overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+    overlay.id = 'sidebarOverlay';
+    overlay.addEventListener('click', closeSidebar);
+    document.body.appendChild(overlay);
+
+    // Inject hamburger into header (first child)
+    const header = document.querySelector('header');
+    if (header) {
+        const btn = document.createElement('button');
+        btn.className = 'hamburger-btn';
+        btn.setAttribute('aria-label', 'Open menu');
+        btn.innerHTML = '&#9776;';
+        btn.addEventListener('click', toggleSidebar);
+        header.insertBefore(btn, header.firstChild);
+    }
+}
+
+function toggleSidebar() {
+    document.querySelector('.sidebar')?.classList.toggle('sidebar-open');
+    document.getElementById('sidebarOverlay')?.classList.toggle('sidebar-overlay-open');
+}
+
+function closeSidebar() {
+    document.querySelector('.sidebar')?.classList.remove('sidebar-open');
+    document.getElementById('sidebarOverlay')?.classList.remove('sidebar-overlay-open');
+}
+
 function setupKeyboardShortcuts() {
     document.addEventListener('keydown', e => {
         const tag = document.activeElement ? document.activeElement.tagName : '';
@@ -272,6 +306,7 @@ const STORAGE_KEY = 'workoutTrackerData';
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
+    setupMobileSidebar();
     loadFromLocalStorage();
     loadPlannedWorkouts();
 
@@ -469,7 +504,6 @@ function startNewWorkout() {
         id: crypto.randomUUID(),
         name: name,
         date: date,
-        notes: (document.getElementById('workoutNotes')?.value || '').trim(),
         exercises: []
     };
 
@@ -670,8 +704,6 @@ function saveCurrentWorkout() {
     currentWorkoutDisplay.classList.add('hidden');
     currentExercisesList.innerHTML = '';
     workoutNameInput.value = '';
-    const notesEl = document.getElementById('workoutNotes');
-    if (notesEl) notesEl.value = '';
     setDefaultDate();
 
     // Update displays
@@ -688,8 +720,6 @@ function cancelCurrentWorkout() {
     addExerciseForm.classList.add('hidden');
     currentWorkoutDisplay.classList.add('hidden');
     workoutNameInput.value = '';
-    const notesEl = document.getElementById('workoutNotes');
-    if (notesEl) notesEl.value = '';
     setDefaultDate();
 }
 
@@ -1360,9 +1390,6 @@ function openWorkoutDetail(workoutId) {
     const dateObj = new Date(workout.date);
     const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     workoutDetailDate.textContent = dateStr;
-    const notesDetailEl = document.getElementById('workoutDetailNotes');
-    if (notesDetailEl) notesDetailEl.textContent = workout.notes || '';
-    if (notesDetailEl) notesDetailEl.style.display = workout.notes ? '' : 'none';
 
     workoutDetailExercises.innerHTML = '';
 
@@ -1567,7 +1594,6 @@ function renderWorkoutHistory() {
                     ${workout.exercises.length} exercise${workout.exercises.length !== 1 ? 's' : ''} · ${totalSets} set${totalSets !== 1 ? 's' : ''} · ${totalVolume.toLocaleString()} lbs
                 </p>
                 <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${exerciseNames}</p>
-                ${workout.notes ? `<p class="workout-notes-display">📝 ${workout.notes}</p>` : ''}
             </div>
             <div class="workout-card-actions">
                 <button class="btn btn-start-history" onclick="event.stopPropagation(); startWorkoutFromId('${workout.id}')">▶ Start</button>
@@ -2600,9 +2626,6 @@ function editWorkout(workoutId) {
     createWorkoutSection.classList.remove('hidden');
     if (workoutNameInput) workoutNameInput.value = workout.name;
     if (workoutDateInput) workoutDateInput.value = workout.date;
-    const notesEditEl = document.getElementById('workoutNotes');
-    if (notesEditEl) notesEditEl.value = workout.notes || '';
-
     // Load existing exercises into currentWorkout
     currentWorkout = {
         id: workout.id,
