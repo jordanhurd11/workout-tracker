@@ -2490,3 +2490,7 @@ body.light-mode .plan-exercise-item,
 body.light-mode .btn-plan-template { background: #f9fafb; border-color: #e5e7eb; }
 
 body.light-mode .current-exercise-item { background: #f3f4f6; }
+
+/* Calendar event labels readable in light mode */
+body.light-mode .cal-label-green { color: #15803d; background: rgba(34,197,94,0.18); }
+body.light-mode .cal-label-blue  { color: #3730a3; background: rgba(99,102,241,0.15); }
