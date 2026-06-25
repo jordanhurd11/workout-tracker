@@ -63,11 +63,20 @@ Object.entries(EXERCISES_BY_MUSCLE).forEach(([muscle, exercises]) => {
 // VOLUME LANDMARK CONSTANTS
 // ========================================
 
-const VOLUME_MUSCLES = [
-    'Chest','Back','Front Delts','Side Delts','Rear Delts',
-    'Biceps','Triceps','Forearms','Quads','Hamstrings','Glutes','Calves','Abs'
-];
+const VOLUME_MUSCLES = ['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core','Forearms'];
 
+const VOLUME_OPTIMAL_RANGES = {
+    'Chest':     { min: 10, max: 20 },
+    'Back':      { min: 12, max: 20 },
+    'Shoulders': { min: 10, max: 18 },
+    'Biceps':    { min:  8, max: 14 },
+    'Triceps':   { min:  8, max: 14 },
+    'Legs':      { min: 14, max: 22 },
+    'Core':      { min:  6, max: 12 },
+    'Forearms':  { min:  4, max: 10 },
+};
+
+// VOLUME_MUSCLE_MAP: each exercise → single primary volume group
 const VOLUME_MUSCLE_MAP = {
     // Chest
     'Barbell Bench Press':'Chest','Incline Barbell Bench Press':'Chest',
@@ -82,13 +91,12 @@ const VOLUME_MUSCLE_MAP = {
     'T-Bar Row':'Back','Dumbbell Row':'Back','Seated Cable Row':'Back',
     'Chest Supported Row':'Back','Machine Row':'Back',
     'Straight Arm Pulldown':'Back','Deadlift':'Back','Rack Pull':'Back',
-    // Front Delts
-    'Overhead Press':'Front Delts','Seated Dumbbell Shoulder Press':'Front Delts',
-    'Arnold Press':'Front Delts','Machine Shoulder Press':'Front Delts','Front Raise':'Front Delts',
-    // Side Delts
-    'Lateral Raise':'Side Delts','Cable Lateral Raise':'Side Delts','Upright Row':'Side Delts',
-    // Rear Delts
-    'Rear Delt Fly':'Rear Delts','Reverse Pec Deck':'Rear Delts','Face Pull':'Rear Delts',
+    // Shoulders (all shoulder exercises → single group)
+    'Overhead Press':'Shoulders','Seated Dumbbell Shoulder Press':'Shoulders',
+    'Arnold Press':'Shoulders','Machine Shoulder Press':'Shoulders',
+    'Lateral Raise':'Shoulders','Cable Lateral Raise':'Shoulders',
+    'Front Raise':'Shoulders','Rear Delt Fly':'Shoulders',
+    'Reverse Pec Deck':'Shoulders','Face Pull':'Shoulders','Upright Row':'Shoulders',
     // Biceps
     'Barbell Curl':'Biceps','EZ Bar Curl':'Biceps','Dumbbell Curl':'Biceps',
     'Alternating Dumbbell Curl':'Biceps','Hammer Curl':'Biceps','Preacher Curl':'Biceps',
@@ -99,24 +107,21 @@ const VOLUME_MUSCLE_MAP = {
     'Close Grip Bench Press':'Triceps','Overhead Tricep Extension':'Triceps',
     'Dumbbell Kickback':'Triceps','Dips (Tricep Focus)':'Triceps',
     'Cable Overhead Extension':'Triceps','Machine Tricep Extension':'Triceps',
-    // Quads
-    'Back Squat':'Quads','Front Squat':'Quads','Hack Squat':'Quads',
-    'Leg Press':'Quads','Bulgarian Split Squat':'Quads','Walking Lunge':'Quads',
-    'Leg Extension':'Quads','Goblet Squat':'Quads','Step-Up':'Quads',
-    // Hamstrings
-    'Romanian Deadlift':'Hamstrings','Stiff Leg Deadlift':'Hamstrings',
-    'Lying Leg Curl':'Hamstrings','Seated Leg Curl':'Hamstrings',
-    'Glute Ham Raise':'Hamstrings','Nordic Curl':'Hamstrings',
-    // Glutes
-    'Hip Thrust':'Glutes','Glute Bridge':'Glutes','Cable Kickback':'Glutes',
-    // Calves
-    'Standing Calf Raise':'Calves','Seated Calf Raise':'Calves',
-    'Leg Press Calf Raise':'Calves','Single Leg Calf Raise':'Calves',
-    // Abs
-    'Crunch':'Abs','Sit-Up':'Abs','Cable Crunch':'Abs',
-    'Hanging Leg Raise':'Abs','Hanging Knee Raise':'Abs','Russian Twist':'Abs',
-    'Bicycle Crunch':'Abs','Ab Wheel Rollout':'Abs','Plank':'Abs',
-    'Side Plank':'Abs','Mountain Climbers':'Abs',
+    // Legs (all leg exercises → single group)
+    'Back Squat':'Legs','Front Squat':'Legs','Hack Squat':'Legs',
+    'Leg Press':'Legs','Bulgarian Split Squat':'Legs','Walking Lunge':'Legs',
+    'Leg Extension':'Legs','Goblet Squat':'Legs','Step-Up':'Legs',
+    'Romanian Deadlift':'Legs','Stiff Leg Deadlift':'Legs',
+    'Lying Leg Curl':'Legs','Seated Leg Curl':'Legs',
+    'Glute Ham Raise':'Legs','Nordic Curl':'Legs',
+    'Hip Thrust':'Legs','Glute Bridge':'Legs','Cable Kickback':'Legs',
+    'Standing Calf Raise':'Legs','Seated Calf Raise':'Legs',
+    'Leg Press Calf Raise':'Legs','Single Leg Calf Raise':'Legs',
+    // Core
+    'Crunch':'Core','Sit-Up':'Core','Cable Crunch':'Core',
+    'Hanging Leg Raise':'Core','Hanging Knee Raise':'Core','Russian Twist':'Core',
+    'Bicycle Crunch':'Core','Ab Wheel Rollout':'Core','Plank':'Core',
+    'Side Plank':'Core','Mountain Climbers':'Core',
     // Forearms
     'Barbell Wrist Curl':'Forearms','Dumbbell Wrist Curl':'Forearms',
     'Barbell Reverse Wrist Curl':'Forearms','Dumbbell Reverse Wrist Curl':'Forearms',
@@ -3091,4 +3096,240 @@ function renderWeeklyVolumeLandmarks() {
             '<div class="coaching-row coaching-' + ins.type + '"><span class="coaching-icon">' +
             iconMap[ins.type] + '</span><span>' + ins.text + '</span></div>'
         ).join('') + '</div>';
+}
+
+// ========================================
+// VOLUME LANDMARKS v2 — HELPERS
+// ========================================
+
+function getAvgOptimalRange() {
+    var mins = VOLUME_MUSCLES.map(function(m){ return VOLUME_OPTIMAL_RANGES[m].min; });
+    var maxs = VOLUME_MUSCLES.map(function(m){ return VOLUME_OPTIMAL_RANGES[m].max; });
+    var n = VOLUME_MUSCLES.length;
+    return {
+        min: mins.reduce(function(s,v){return s+v;},0) / n,
+        max: maxs.reduce(function(s,v){return s+v;},0) / n
+    };
+}
+
+function countDistinctWeeksWithWorkouts() {
+    var weekStarts = new Set();
+    workouts.forEach(function(w) {
+        var d = new Date(w.date + 'T00:00:00');
+        var dow = d.getDay();
+        var daysToMon = dow === 0 ? 6 : dow - 1;
+        var mon = new Date(d);
+        mon.setDate(d.getDate() - daysToMon);
+        weekStarts.add(mon.toISOString().split('T')[0]);
+    });
+    return weekStarts.size;
+}
+
+function getAdaptiveAverageData() {
+    var distinctWeeks = countDistinctWeeksWithWorkouts();
+    var divisor = Math.min(Math.max(distinctWeeks, 1), 4);
+    var weekVols = [0, -1, -2, -3].map(getWeekVolume);
+
+    var avgLabel = distinctWeeks >= 4
+        ? '4-Week Rolling Avg'
+        : ('Avg Since Tracking (' + divisor + (divisor === 1 ? ' Week)' : ' Weeks)'));
+
+    var avg = {};
+    VOLUME_MUSCLES.forEach(function(m) {
+        var total = 0;
+        for (var i = 0; i < divisor; i++) total += (weekVols[i][m] || 0);
+        avg[m] = total / divisor;
+    });
+
+    var weekTotals = weekVols.map(function(v) {
+        return VOLUME_MUSCLES.reduce(function(s, m){ return s + v[m]; }, 0);
+    });
+    var avgTotal = 0;
+    for (var i = 0; i < divisor; i++) avgTotal += weekTotals[i];
+    avgTotal = avgTotal / divisor;
+
+    return { avg: avg, avgTotal: avgTotal, divisor: divisor, label: avgLabel, weekVols: weekVols };
+}
+
+function getVolumeStatus(sets, muscle) {
+    var range = VOLUME_OPTIMAL_RANGES[muscle] || { min: 10, max: 20 };
+    var min = range.min; var max = range.max;
+    if (sets === 0)       return { label:'No Volume',     color:'#EF4444', cls:'vs-none',      badge:'⚫', msg:'No direct sets recorded this week.' };
+    if (sets < min)       return { label:'Below Optimal', color:'#F97316', cls:'vs-below',     badge:'🟠', msg:'Below the recommended weekly volume for this muscle group.' };
+    if (sets <= max)      return { label:'Optimal',       color:'#22C55E', cls:'vs-optimal',   badge:'🟢', msg:'Excellent weekly training volume for muscle growth.' };
+    if (sets <= max + 5)  return { label:'High Volume',   color:'#3B82F6', cls:'vs-high',      badge:'🔵', msg:'High volume. Ensure adequate recovery.' };
+    return                 { label:'Excessive',           color:'#A855F7', cls:'vs-excessive', badge:'🟣', msg:'Recovery may become limiting. Consider reducing weekly volume.' };
+}
+
+function getVolumeSummaryColor(avgPerMuscle) {
+    var r = getAvgOptimalRange();
+    if (avgPerMuscle === 0)         return '#EF4444';
+    if (avgPerMuscle < r.min)       return '#F97316';
+    if (avgPerMuscle <= r.max)      return '#22C55E';
+    if (avgPerMuscle <= r.max * 1.3) return '#3B82F6';
+    return '#A855F7';
+}
+
+function getMuscleStatusColor(sets, muscle) {
+    return getVolumeStatus(sets, muscle).color;
+}
+
+function getOptimalMusclesColor(count, total) {
+    var pct = count / total;
+    if (pct === 0)   return '#EF4444';
+    if (pct < 0.4)   return '#F97316';
+    if (pct < 0.7)   return '#86efac';
+    if (pct < 0.9)   return '#22c55e';
+    return '#00ff88';
+}
+
+function getSummaryBadge(avgPerMuscle, optimalCount, total) {
+    var r = getAvgOptimalRange();
+    var pct = optimalCount / total;
+    if (avgPerMuscle < r.min * 0.5)              return { text:'Needs More Volume', color:'#EF4444' };
+    if (avgPerMuscle < r.min)                    return { text:'Building Volume',   color:'#F97316' };
+    if (avgPerMuscle > r.max * 1.3)              return { text:'Recovery Risk',     color:'#A855F7' };
+    if (avgPerMuscle > r.max)                    return { text:'High Volume Week',  color:'#3B82F6' };
+    if (pct >= 0.7)                              return { text:'Well Balanced',     color:'#22C55E' };
+    return                                               { text:'Building Volume',  color:'#F97316' };
+}
+
+function getCoachingSentence(thisWeek, optimalCount, total, avgPerMuscle) {
+    var r = getAvgOptimalRange();
+    var pct = optimalCount / total;
+    var excessive = VOLUME_MUSCLES.filter(function(m){ return thisWeek[m] > VOLUME_OPTIMAL_RANGES[m].max + 5; });
+    if (excessive.length >= 2)  return 'Training volume is unusually high this week. Prioritize sleep and recovery.';
+    if (optimalCount === total)  return 'Excellent training balance across all major muscle groups this week.';
+    if (avgPerMuscle < r.min * 0.5) return 'Most muscle groups are below their recommended weekly volume. Aim to increase training frequency.';
+    if (pct >= 0.7)              return 'Strong training week. A couple of muscle groups could use a bit more volume.';
+    if (pct >= 0.4)              return "You're making good progress, but several muscle groups still need more weekly volume.";
+    return 'Several muscle groups are below their recommended weekly volume. Focus on hitting all major muscles.';
+}
+
+// ========================================
+// VOLUME LANDMARKS v2 — MAIN RENDER
+// ========================================
+
+function renderWeeklyVolumeLandmarks() {
+    var summaryEl  = document.getElementById('volumeSummaryCard');
+    var gridEl     = document.getElementById('volumeMuscleCards');
+    var insightsEl = document.getElementById('coachingInsights');
+    if (!summaryEl || !gridEl || !insightsEl) return;
+
+    var data      = getAdaptiveAverageData();
+    var thisWeek  = data.weekVols[0];
+    var avg       = data.avg;
+
+    var totalThisWeek = VOLUME_MUSCLES.reduce(function(s,m){ return s + thisWeek[m]; }, 0);
+    var avgPerMuscle  = totalThisWeek / VOLUME_MUSCLES.length;
+    var sortedByVol   = VOLUME_MUSCLES.slice().sort(function(a,b){ return thisWeek[b]-thisWeek[a]; });
+    var mostMuscle    = sortedByVol[0];
+    var leastMuscle   = sortedByVol[sortedByVol.length-1];
+    var optimalCount  = VOLUME_MUSCLES.filter(function(m){
+        var r = VOLUME_OPTIMAL_RANGES[m];
+        return thisWeek[m] >= r.min && thisWeek[m] <= r.max;
+    }).length;
+
+    var summaryColor  = getVolumeSummaryColor(avgPerMuscle);
+    var mostColor     = getMuscleStatusColor(thisWeek[mostMuscle], mostMuscle);
+    var leastColor    = getMuscleStatusColor(thisWeek[leastMuscle], leastMuscle);
+    var optimalColor  = getOptimalMusclesColor(optimalCount, VOLUME_MUSCLES.length);
+    var badge         = getSummaryBadge(avgPerMuscle, optimalCount, VOLUME_MUSCLES.length);
+    var coachMsg      = getCoachingSentence(thisWeek, optimalCount, VOLUME_MUSCLES.length, avgPerMuscle);
+
+    summaryEl.innerHTML = [
+        '<div class="vol-summary-card">',
+        '<div class="vol-summary-header">',
+        '<h3 class="vol-summary-title">Weekly Volume Summary</h3>',
+        '<div class="vol-summary-badge" style="background:' + badge.color + '20;color:' + badge.color + ';border:1px solid ' + badge.color + '40">' + badge.text + '</div>',
+        '</div>',
+        '<div class="vol-coaching-sentence">' + coachMsg + '</div>',
+        '<div class="vol-summary-grid">',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Total Weekly Sets</div>',
+        '<div class="vol-sum-value" id="vsTotalSets" style="color:' + summaryColor + '">0</div></div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">' + data.label + '</div>',
+        '<div class="vol-sum-value" id="vs4Avg" style="color:' + summaryColor + '">0</div></div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Avg Sets / Muscle</div>',
+        '<div class="vol-sum-value" id="vsAvgMuscle" style="color:' + summaryColor + '">0</div></div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Most Trained</div>',
+        '<div class="vol-sum-value vol-sum-text" style="color:' + mostColor + '">' + mostMuscle + ' (' + thisWeek[mostMuscle] + ')</div></div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Least Trained</div>',
+        '<div class="vol-sum-value vol-sum-text" style="color:' + leastColor + '">' + leastMuscle + ' (' + thisWeek[leastMuscle] + ')</div></div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Optimal Muscles</div>',
+        '<div class="vol-sum-value" id="vsOptimal" style="color:' + optimalColor + '">0</div></div>',
+        '</div></div>'
+    ].join('');
+
+    animateCounter(document.getElementById('vsTotalSets'), totalThisWeek, function(v){ return Math.round(v).toString(); });
+    animateCounter(document.getElementById('vs4Avg'),      data.avgTotal,  function(v){ return v.toFixed(1); });
+    animateCounter(document.getElementById('vsAvgMuscle'), avgPerMuscle,   function(v){ return v.toFixed(1); });
+    animateCounter(document.getElementById('vsOptimal'),   optimalCount,   function(v){ return Math.round(v) + ' / ' + VOLUME_MUSCLES.length; });
+
+    // Muscle cards
+    gridEl.innerHTML = '';
+    var TOOLTIP_TXT = 'Current research suggests 10-20 hard working sets per muscle group per week is optimal for most trained individuals. Each muscle group has its own evidence-based recommendation shown above.';
+
+    VOLUME_MUSCLES.forEach(function(muscle) {
+        var sets   = thisWeek[muscle];
+        var avgSets = avg[muscle];
+        var range  = VOLUME_OPTIMAL_RANGES[muscle];
+        var status = getVolumeStatus(sets, muscle);
+        var pct    = Math.min((sets / range.max) * 100, 100);
+
+        var card = document.createElement('div');
+        card.className = 'vol-muscle-card';
+        card.innerHTML = [
+            '<div class="vmc-header">',
+            '<div class="vmc-name">' + muscle + '</div>',
+            '<div class="vmc-badge ' + status.cls + '" style="color:' + status.color + ';background:' + status.color + '18;border-color:' + status.color + '40">' + status.badge + ' ' + status.label + '</div>',
+            '</div>',
+            '<div class="vmc-stats">',
+            '<div class="vmc-stat"><div class="vmc-stat-label">This Week</div>',
+            '<div class="vmc-stat-val" data-target="' + sets + '" style="color:' + status.color + '">0 Sets</div></div>',
+            '<div class="vmc-stat"><div class="vmc-stat-label">' + data.label + '</div>',
+            '<div class="vmc-stat-val">' + avgSets.toFixed(1) + ' Sets</div></div>',
+            '</div>',
+            '<div class="vmc-bar-wrap">',
+            '<div class="vmc-bar"><div class="vmc-bar-fill" data-pct="' + pct + '" style="width:0%;background:' + status.color + '"></div></div>',
+            '</div>',
+            '<div class="vmc-range">Optimal Range: ' + range.min + '–' + range.max + ' Sets ',
+            '<span class="info-icon" data-tip="' + TOOLTIP_TXT + '">i</span></div>',
+            '<div class="vmc-msg">' + status.msg + '</div>'
+        ].join('');
+
+        gridEl.appendChild(card);
+
+        var valEl = card.querySelector('.vmc-stat-val[data-target]');
+        if (valEl) animateCounter(valEl, sets, function(v){ return Math.round(v) + ' Sets'; }, 900);
+    });
+
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            gridEl.querySelectorAll('.vmc-bar-fill').forEach(function(bar) {
+                bar.style.transition = 'width 1s cubic-bezier(0.22,1,0.36,1)';
+                bar.style.width = bar.dataset.pct + '%';
+            });
+        });
+    });
+
+    // Coaching insights (per-muscle rows)
+    var insights = [];
+    VOLUME_MUSCLES.forEach(function(m) {
+        var s = thisWeek[m];
+        var r = VOLUME_OPTIMAL_RANGES[m];
+        if (s === 0)              insights.push({ type:'warn', text: m + ' received no direct sets this week.' });
+        else if (s < r.min)       insights.push({ type:'warn', text: m + ' is below the optimal range (' + s + ' of ' + r.min + '–' + r.max + ' sets).' });
+        else if (s > r.max + 5)   insights.push({ type:'warn', text: m + ' volume may be excessive (' + s + ' sets). Consider recovery.' });
+        else if (s >= r.min)      insights.push({ type:'good', text: m + ' is in the optimal growth range (' + s + ' sets).' });
+    });
+    if (thisWeek[mostMuscle] > 0)
+        insights.unshift({ type:'fire', text: mostMuscle + ' has the highest weekly volume (' + thisWeek[mostMuscle] + ' sets).' });
+
+    var iconMap = { good:'&#10003;', warn:'&#9888;', fire:'&#128293;', flex:'&#128170;' };
+    insightsEl.innerHTML = insights.length === 0 ? '' :
+        '<div class="coaching-card"><h3 class="coaching-title">Weekly Coaching Insights</h3>' +
+        insights.slice(0, 9).map(function(ins) {
+            return '<div class="coaching-row coaching-' + ins.type + '"><span class="coaching-icon">' +
+                   iconMap[ins.type] + '</span><span>' + ins.text + '</span></div>';
+        }).join('') + '</div>';
 }

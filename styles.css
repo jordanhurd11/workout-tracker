@@ -3332,3 +3332,36 @@ body.light-mode .vol-muscle-card,
 body.light-mode .coaching-card { background: #ffffff; }
 body.light-mode .vmc-bar { background: rgba(0,0,0,0.08); }
 body.light-mode .info-icon::after { background: #ffffff; }
+
+/* Volume Landmarks v2 — summary header, badge, coaching sentence */
+.vol-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.vol-summary-title { margin: 0; font-size: 1.05em; font-weight: 700; color: var(--text-dark); border: none; padding: 0; }
+
+.vol-summary-badge {
+    font-size: 0.78em;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.vol-coaching-sentence {
+    font-size: 0.88em;
+    color: var(--text-light);
+    font-style: italic;
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+/* Below-optimal badge (new status tier) */
+.vs-below { }
