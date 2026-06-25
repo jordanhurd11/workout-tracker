@@ -141,8 +141,8 @@ let templateQueue = [];
 let plannedWorkouts = [];
 let planExercises = [];
 let selectedTemplateId = null;
-let lastSavedWorkoutId = null;  // tracks which card to animate in history
-let chartAnimId = null;         // allows cancelling in-progress chart animation
+let chartAnimId = null;   // allows cancelling in-progress chart animation
+let chartState  = null;   // latest chart data for hover re-animation
 let calendarYear  = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
@@ -208,6 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => renderProgressChart(), 150);
         });
+
+        // Chart animates on hover
+        const chartContainer = document.querySelector('.progress-chart-container');
+        if (chartContainer) {
+            chartContainer.addEventListener('mouseenter', animateChartOnHover);
+        }
     } else if (currentPage === 'statistics') {
         renderMuscleGroupProgress();
     } else if (currentPage === 'achievements') {
@@ -473,7 +479,6 @@ function saveCurrentWorkout() {
         return;
     }
 
-    lastSavedWorkoutId = currentWorkout.id;
     workouts.push({ ...currentWorkout });
     saveToLocalStorage();
 
@@ -1229,12 +1234,6 @@ function renderWorkoutHistory() {
 
         item.addEventListener('click', () => openWorkoutDetail(workout.id));
 
-        // Slide in the card that was just saved
-        if (workout.id === lastSavedWorkoutId) {
-            item.classList.add('workout-item-new');
-            lastSavedWorkoutId = null; // only animate once
-        }
-
         workoutHistoryContainer.appendChild(item);
     });
 }
@@ -1713,7 +1712,79 @@ function renderProgressChart() {
     grad.addColorStop(0.18, 'rgba(57, 255, 138, 0.18)');
     grad.addColorStop(1.00, 'rgba(57, 255, 138, 0.00)');
 
+    // Save state so hover animation can replay with latest data
+    chartState = { ctx, canvas, width, height, pts, grad, pad, cw, ch,
+                   pMax, pRange, uniqueDates, drawCurve: drawCurveSegments };
+
+    // Draw statically (instant) on every render
+    drawChartFull();
+}
+
+function drawChartFull() {
+    if (!chartState) return;
+    const { ctx, width, height, pts, grad, pad, cw, ch, pMax, pRange, uniqueDates } = chartState;
+    const NEON = '#39ff8a';
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1e1c35';
+    ctx.fillRect(0, 0, width, height);
+
+    // Y-axis labels
+    ctx.fillStyle = '#4e4c6a';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+        const p = pMax - (pRange / 4) * i;
+        const y = pad.top + (ch / 4) * i;
+        ctx.fillText((p >= 0 ? '+' : '') + p.toFixed(0) + '%', pad.left - 8, y + 4);
+    }
+
+    // X-axis date labels
+    pts.forEach((pt, i) => {
+        const d = new Date(uniqueDates[i]);
+        const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
+        ctx.save();
+        ctx.translate(pt.x, height - pad.bottom + 8);
+        ctx.rotate(-Math.PI / 4);
+        ctx.fillStyle = '#4e4c6a';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+    });
+
+    // Gradient fill
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, height - pad.bottom);
+    ctx.lineTo(pts[0].x, pts[0].y);
+    chartState.drawCurve();
+    ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Neon stroke
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    chartState.drawCurve();
+    ctx.strokeStyle = NEON;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+}
+
+function animateChartOnHover() {
+    if (!chartState) return;
+    const { ctx, width, height, pts, grad, pad, cw, ch, pMax, pRange, uniqueDates } = chartState;
+    const NEON = '#39ff8a';
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    if (chartAnimId) { cancelAnimationFrame(chartAnimId); chartAnimId = null; }
+
+    const ANIM_DURATION = 1200;
+    let animStart = null;
 
     function drawLabels() {
         ctx.fillStyle = '#4e4c6a';
@@ -1738,43 +1809,33 @@ function renderProgressChart() {
         });
     }
 
-    // Cancel any in-progress chart animation before starting a new one
-    if (chartAnimId) { cancelAnimationFrame(chartAnimId); chartAnimId = null; }
-
-    const ANIM_DURATION = 1200;
-    let animStart = null;
-
     function frame(timestamp) {
         if (!animStart) animStart = timestamp;
         const t = Math.min((timestamp - animStart) / ANIM_DURATION, 1);
-        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        const eased = 1 - Math.pow(1 - t, 3);
 
-        // Redraw background and labels every frame
         ctx.clearRect(0, 0, width, height);
         ctx.fillStyle = '#1e1c35';
         ctx.fillRect(0, 0, width, height);
         drawLabels();
 
-        // Clip chart area to expanding rect (line draws left → right)
         ctx.save();
         ctx.beginPath();
         ctx.rect(0, 0, pad.left + cw * eased, height);
         ctx.clip();
 
-        // Gradient fill
         ctx.beginPath();
         ctx.moveTo(pts[0].x, height - pad.bottom);
         ctx.lineTo(pts[0].x, pts[0].y);
-        drawCurveSegments();
+        chartState.drawCurve();
         ctx.lineTo(pts[pts.length - 1].x, height - pad.bottom);
         ctx.closePath();
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // Neon stroke
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
-        drawCurveSegments();
+        chartState.drawCurve();
         ctx.strokeStyle = NEON;
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
