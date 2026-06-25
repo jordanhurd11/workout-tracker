@@ -239,6 +239,7 @@ function toggleTheme() {
     // Redraw canvas charts with new background colour
     if (currentPage === 'dashboard') {
         drawChartFull();
+        renderMuscleRadar();
     } else if (currentPage === 'statistics') {
         renderMuscleGroupProgress();
     }
@@ -403,11 +404,21 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWorkoutHistory();
         renderWorkoutCalendar();
         renderProgressChart();
+        renderMuscleRadar();
+
+        // Radar tooltip element
+        const rtt = document.createElement('div');
+        rtt.id = 'radarTooltip'; rtt.className = 'radar-tooltip'; rtt.style.display = 'none';
+        document.body.appendChild(rtt);
+        setupRadarHover(document.getElementById('muscleRadarChart'));
 
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => renderProgressChart(), 150);
+            resizeTimer = setTimeout(() => {
+                renderProgressChart();
+                renderMuscleRadar();
+            }, 150);
         });
 
         // Chart animates on hover
@@ -1777,6 +1788,7 @@ function renderStats() {
     renderWorkoutHistory();
     renderWorkoutCalendar();
     renderProgressChart();
+    renderMuscleRadar();
 }
 
 // ========================================
@@ -3332,4 +3344,301 @@ function renderWeeklyVolumeLandmarks() {
             return '<div class="coaching-row coaching-' + ins.type + '"><span class="coaching-icon">' +
                    iconMap[ins.type] + '</span><span>' + ins.text + '</span></div>';
         }).join('') + '</div>';
+}
+
+// ========================================
+// MUSCLE DEVELOPMENT RADAR
+// ========================================
+
+var radarDataPts  = [];
+var radarAnimId2  = null;
+
+function getRadarData() {
+    // Reuses getMuscleGroupPercentChanges() — single source of truth
+    var changes = getMuscleGroupPercentChanges();
+    var map = {};
+    changes.forEach(function(c) { map[c.muscle] = c.totalPercentIncrease; });
+    return ['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core','Forearms'].map(function(m) {
+        return { name: m, value: map[m] !== undefined ? map[m] : 0 };
+    });
+}
+
+function getRadarScale(maxVal) {
+    if (maxVal <= 0)   return 20;
+    if (maxVal <= 15)  return 20;
+    if (maxVal <= 30)  return 50;
+    if (maxVal <= 75)  return 100;
+    if (maxVal <= 125) return 150;
+    return Math.ceil(maxVal / 50) * 50;
+}
+
+function calculateBalanceScore(data) {
+    var vals  = data.map(function(d) { return d.value; });
+    var mean  = vals.reduce(function(s,v){return s+v;},0) / vals.length;
+    var avgDev = vals.reduce(function(s,v){return s+Math.abs(v-mean);},0) / vals.length;
+    var score = Math.max(0, Math.min(100, 100 - avgDev));
+    var rating, color;
+    if      (score >= 90) { rating = 'Excellent';             color = '#22c55e'; }
+    else if (score >= 75) { rating = 'Good';                  color = '#22c55e'; }
+    else if (score >= 60) { rating = 'Moderate Imbalance';    color = '#f97316'; }
+    else if (score >= 40) { rating = 'Needs Improvement';     color = '#ef4444'; }
+    else                  { rating = 'Significant Imbalance'; color = '#ef4444'; }
+    return { score: score, rating: rating, color: color };
+}
+
+function generateRadarRecommendation(sorted) {
+    var top    = sorted[0];
+    var bottom = sorted[sorted.length - 1];
+    var upperMuscles = ['Chest','Back','Shoulders','Biceps','Triceps'];
+    var lowerMuscles = ['Legs','Core'];
+    var upperData = sorted.filter(function(d){ return upperMuscles.indexOf(d.name) !== -1; });
+    var lowerData = sorted.filter(function(d){ return lowerMuscles.indexOf(d.name) !== -1; });
+    var upperAvg = upperData.length ? upperData.reduce(function(s,d){return s+d.value;},0)/upperData.length : 0;
+    var lowerAvg = lowerData.length ? lowerData.reduce(function(s,d){return s+d.value;},0)/lowerData.length : 0;
+
+    if (sorted.every(function(d){ return d.value > 0; }) && Math.abs(upperAvg - lowerAvg) < 5)
+        return 'Excellent balance across all major muscle groups.';
+    if (upperAvg > lowerAvg + 15)
+        return 'Your upper body is progressing faster than your lower body. Prioritize leg training.';
+    if (lowerAvg > upperAvg + 15)
+        return 'Your lower body is outpacing your upper body development.';
+    if (bottom.value <= 0)
+        return bottom.name + ' has shown the least improvement. Consider adding targeted exercises.';
+    if (top.value > 0 && bottom.value < top.value * 0.3)
+        return bottom.name + ' development is falling behind. Prioritize direct training for better balance.';
+    return 'Good overall progress. Keep focusing on ' + bottom.name + ' to improve muscular symmetry.';
+}
+
+function drawRadarCanvas(canvas, data, animProgress) {
+    var dpr  = window.devicePixelRatio || 1;
+    var size = canvas.offsetWidth || 360;
+    canvas.width  = size * dpr;
+    canvas.height = size * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    var maxVal  = Math.max.apply(null, data.map(function(d){ return d.value; }).concat([0]));
+    var scale   = getRadarScale(maxVal);
+    var n       = data.length;
+    var cx      = size / 2;
+    var cy      = size / 2;
+    var radius  = size * 0.34;
+    var step    = (2 * Math.PI) / n;
+    var rings   = 4;
+    var NEON    = '#39ff8a';
+    var isLight = document.body.classList.contains('light-mode');
+    var lblColor  = isLight ? '#1f2937'              : '#f0eeff';
+    var gridColor = isLight ? 'rgba(0,0,0,0.07)'     : 'rgba(255,255,255,0.07)';
+    var scaleColor = isLight ? 'rgba(0,0,0,0.25)'    : 'rgba(255,255,255,0.22)';
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Grid rings (polygon shape)
+    for (var r = 1; r <= rings; r++) {
+        var rr = (radius / rings) * r;
+        ctx.beginPath();
+        for (var i = 0; i < n; i++) {
+            var a = step * i - Math.PI / 2;
+            if (i === 0) ctx.moveTo(cx + rr*Math.cos(a), cy + rr*Math.sin(a));
+            else         ctx.lineTo(cx + rr*Math.cos(a), cy + rr*Math.sin(a));
+        }
+        ctx.closePath();
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Scale labels on top axis
+        var val = (scale / rings) * r;
+        ctx.fillStyle = scaleColor;
+        ctx.font = '9px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('+' + Math.round(val) + '%', cx, cy - rr - 4);
+    }
+
+    // Axis lines
+    for (var i = 0; i < n; i++) {
+        var a = step * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + radius*Math.cos(a), cy + radius*Math.sin(a));
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // Data polygon (animated by animProgress 0→1)
+    var pts = data.map(function(d, i) {
+        var a   = step * i - Math.PI / 2;
+        var pct = Math.max(0, d.value) / scale * animProgress;
+        var rv  = radius * Math.min(pct, 1.0);
+        return { x: cx + rv*Math.cos(a), y: cy + rv*Math.sin(a) };
+    });
+
+    // Fill
+    ctx.beginPath();
+    pts.forEach(function(p, i) { i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(57,255,138,0.12)';
+    ctx.fill();
+
+    // Stroke
+    ctx.beginPath();
+    pts.forEach(function(p, i) { i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+    ctx.closePath();
+    ctx.strokeStyle = NEON;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Dots at vertices
+    pts.forEach(function(p) {
+        ctx.fillStyle = NEON;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Labels (always at full radius, independent of animation)
+    var LABEL_GAP = 26;
+    data.forEach(function(d, i) {
+        var a  = step * i - Math.PI / 2;
+        var lx = cx + (radius + LABEL_GAP) * Math.cos(a);
+        var ly = cy + (radius + LABEL_GAP) * Math.sin(a);
+        var ca = Math.cos(a);
+        var ta = Math.abs(ca) < 0.15 ? 'center' : (ca > 0 ? 'left' : 'right');
+
+        ctx.fillStyle = lblColor;
+        ctx.font = 'bold 11px -apple-system, sans-serif';
+        ctx.textAlign = ta;
+        ctx.fillText(d.name, lx, ly);
+
+        var sign = d.value >= 0 ? '+' : '';
+        ctx.fillStyle = d.value > 0 ? NEON : (isLight ? '#9ca3af' : '#6b7280');
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.fillText(sign + d.value.toFixed(1) + '%', lx, ly + 13);
+    });
+
+    return pts;
+}
+
+function animateRadarChart(canvas, data) {
+    if (radarAnimId2) { cancelAnimationFrame(radarAnimId2); radarAnimId2 = null; }
+    var DURATION = 1000;
+    var start = null;
+
+    function frame(ts) {
+        if (!start) start = ts;
+        var t     = Math.min((ts - start) / DURATION, 1);
+        var eased = 1 - Math.pow(1 - t, 3);
+        var pts   = drawRadarCanvas(canvas, data, eased);
+        if (t >= 1) {
+            radarDataPts = pts.map(function(p, i) {
+                return { x: p.x, y: p.y, name: data[i].name, value: data[i].value };
+            });
+            radarAnimId2 = null;
+        } else {
+            radarAnimId2 = requestAnimationFrame(frame);
+        }
+    }
+    radarAnimId2 = requestAnimationFrame(frame);
+}
+
+function renderRadarInsights(el, data) {
+    var sorted    = data.slice().sort(function(a,b){ return b.value - a.value; });
+    var strongest = sorted[0];
+    var weakest   = sorted[sorted.length - 1];
+    var balance   = calculateBalanceScore(data);
+    var rec       = generateRadarRecommendation(sorted);
+
+    var sColor = strongest.value > 0 ? '#22c55e' : '#9ca3af';
+    var wColor = weakest.value  > 0 ? '#f97316' : '#ef4444';
+
+    el.innerHTML = [
+        '<div class="radar-insights-card">',
+        '<h3 class="radar-insights-title">Muscle Development Insights</h3>',
+
+        '<div class="ri-item">',
+        '<div class="ri-label">🏆 Strongest Muscle Group</div>',
+        '<div class="ri-value" style="color:' + sColor + '">' + strongest.name + '</div>',
+        '<div class="ri-sub" style="color:' + sColor + '">' + (strongest.value>=0?'+':'') + strongest.value.toFixed(1) + '% Est. 1RM Improvement</div>',
+        '</div>',
+
+        '<div class="ri-item">',
+        '<div class="ri-label">📉 Needs Attention</div>',
+        '<div class="ri-value" style="color:' + wColor + '">' + weakest.name + '</div>',
+        '<div class="ri-sub" style="color:' + wColor + '">' + (weakest.value>=0?'+':'') + weakest.value.toFixed(1) + '% Est. 1RM Improvement</div>',
+        '</div>',
+
+        '<div class="ri-item">',
+        '<div class="ri-label">⚖ Muscle Balance Score</div>',
+        '<div class="ri-value" style="color:' + balance.color + '">' + balance.score.toFixed(0) + '</div>',
+        '<div class="ri-sub" style="color:' + balance.color + '">' + balance.rating + '</div>',
+        '</div>',
+
+        '<div class="ri-item ri-recommendation">',
+        '<div class="ri-label">💡 Recommendation</div>',
+        '<div class="ri-rec-text">' + rec + '</div>',
+        '</div>',
+
+        '</div>'
+    ].join('');
+}
+
+function setupRadarHover(canvas) {
+    var tt = document.getElementById('radarTooltip');
+    if (!tt || !canvas) return;
+
+    canvas.addEventListener('mousemove', function(e) {
+        var rect  = canvas.getBoundingClientRect();
+        var scaleX = (canvas.width / (window.devicePixelRatio || 1)) / rect.width;
+        var scaleY = (canvas.height / (window.devicePixelRatio || 1)) / rect.height;
+        var mx = (e.clientX - rect.left) * scaleX;
+        var my = (e.clientY - rect.top)  * scaleY;
+
+        var found = null;
+        radarDataPts.forEach(function(p) {
+            var dx = mx - p.x, dy = my - p.y;
+            if (Math.sqrt(dx*dx + dy*dy) < 18) found = p;
+        });
+
+        if (found) {
+            tt.innerHTML =
+                '<div class="rtt-name">' + found.name + '</div>' +
+                '<div class="rtt-val">'  + (found.value>=0?'+':'') + found.value.toFixed(1) + '%</div>' +
+                '<div class="rtt-note">Est. 1RM Improvement</div>';
+            tt.style.display = 'block';
+            tt.style.left = (e.clientX + 14) + 'px';
+            tt.style.top  = (e.clientY - 10) + 'px';
+        } else {
+            tt.style.display = 'none';
+        }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        if (tt) tt.style.display = 'none';
+    });
+}
+
+function renderMuscleRadar() {
+    var canvas     = document.getElementById('muscleRadarChart');
+    var insightsEl = document.getElementById('radarInsights');
+    var emptyEl    = document.getElementById('radarEmpty');
+    if (!canvas || !insightsEl) return;
+
+    var data    = getRadarData();
+    var hasData = data.some(function(d){ return d.value !== 0; });
+
+    if (!hasData) {
+        canvas.style.display = 'none';
+        if (emptyEl) emptyEl.classList.remove('hidden');
+        insightsEl.innerHTML = '';
+        return;
+    }
+
+    canvas.style.display = 'block';
+    if (emptyEl) emptyEl.classList.add('hidden');
+
+    animateRadarChart(canvas, data);
+    renderRadarInsights(insightsEl, data);
 }

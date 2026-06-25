@@ -136,6 +136,33 @@
                     </div>
                 </section>
 
+                <!-- Muscle Development Radar -->
+                <section class="radar-section">
+                    <div class="radar-card">
+                        <div class="chart-section-header">
+                            <div class="chart-emoji-icon" style="background:#0d2a1a;">🕸️</div>
+                            <div>
+                                <h2>Muscle Development Radar</h2>
+                                <p class="chart-subtitle">Compare your strength progress across every major muscle group.</p>
+                            </div>
+                        </div>
+                        <div class="radar-body">
+                            <div class="radar-chart-wrapper">
+                                <canvas id="muscleRadarChart"></canvas>
+                                <div id="radarEmpty" class="radar-empty hidden">
+                                    No workout data available yet.<br>Complete workouts to begin tracking muscle development.
+                                </div>
+                            </div>
+                            <div id="radarInsights" class="radar-insights-panel"></div>
+                        </div>
+                        <div class="radar-legend">
+                            <span class="radar-legend-dot"></span>
+                            <span class="radar-legend-label">Current Muscle Development</span>
+                            <span class="radar-legend-note">Percent increase calculated from your first recorded workout using Estimated 1RM progression.</span>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="calendar-section">
                     <div class="cal-nav">
                         <button class="btn-cal-nav" id="dashCalPrevBtn">&#8249;</button>
