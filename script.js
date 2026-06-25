@@ -520,6 +520,11 @@ function showAddExerciseForm() {
     const si = document.getElementById('exerciseSearchInput');
     if (si) si.value = '';
     if (exerciseNumSetsInput) exerciseNumSetsInput.value = '';
+
+    // Scroll to the add exercise form so the user sees it immediately
+    setTimeout(() => {
+        if (addExerciseForm) addExerciseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
 }
 
 function generateExerciseSetInputs(numberOfSets) {
