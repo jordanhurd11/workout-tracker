@@ -83,15 +83,35 @@ const VOLUME_OPTIMAL_RANGES = {
 const EXERCISE_TYPE_MAP = {
     // Timed only
     'Plank': 'timed', 'Side Plank': 'timed',
-    // Bodyweight only
-    'Crunch': 'bodyweight', 'Sit-Up': 'bodyweight', 'Cable Crunch': 'bodyweight',
-    'Hanging Leg Raise': 'bodyweight', 'Hanging Knee Raise': 'bodyweight',
-    'Russian Twist': 'bodyweight', 'Bicycle Crunch': 'bodyweight',
-    'Ab Wheel Rollout': 'bodyweight', 'Mountain Climbers': 'bodyweight',
-    // Optional weighted (BW or Weighted toggle)
-    'Pull-Up': 'optional_weighted', 'Chin-Up': 'optional_weighted',
-    'Push-Up': 'optional_weighted',
-    'Dips (Chest Focus)': 'optional_weighted', 'Dips (Tricep Focus)': 'optional_weighted',
+
+    // Bodyweight only (reps, no weight option)
+    'Hanging Knee Raise': 'bodyweight',
+    'Bicycle Crunch':     'bodyweight',
+    'Ab Wheel Rollout':   'bodyweight',
+    'Mountain Climbers':  'bodyweight',
+
+    // Optional weighted — Bodyweight OR + Weight toggle
+    // Upper body
+    'Pull-Up':            'optional_weighted',
+    'Chin-Up':            'optional_weighted',
+    'Push-Up':            'optional_weighted',
+    'Dips (Chest Focus)': 'optional_weighted',
+    'Dips (Tricep Focus)':'optional_weighted',
+    // Core
+    'Crunch':             'optional_weighted',
+    'Sit-Up':             'optional_weighted',
+    'Hanging Leg Raise':  'optional_weighted',
+    'Russian Twist':      'optional_weighted',
+    // Legs
+    'Back Squat':         'optional_weighted',
+    'Bulgarian Split Squat':'optional_weighted',
+    'Walking Lunge':      'optional_weighted',
+    'Goblet Squat':       'optional_weighted',
+    'Hip Thrust':         'optional_weighted',
+    'Step-Up':            'optional_weighted',
+    'Standing Calf Raise':'optional_weighted',
+    'Single Leg Calf Raise':'optional_weighted',
+    // Cable Crunch and all others default to 'weighted'
 };
 
 function getExerciseType(name) { return EXERCISE_TYPE_MAP[name] || 'weighted'; }
