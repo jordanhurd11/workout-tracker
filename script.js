@@ -1864,7 +1864,7 @@ function renderWorkoutHistory() {
                 <h3>${workout.name}</h3>
                 <p>${dateStr}</p>
                 <p style="color: #667eea; font-weight: 600; margin: 10px 0;">
-                    ${workout.exercises.length} exercise${workout.exercises.length !== 1 ? 's' : ''} · ${totalSets} set${totalSets !== 1 ? 's' : ''} · ${totalVolume.toLocaleString()} lbs
+                    ${workout.exercises.length} exercise${workout.exercises.length !== 1 ? 's' : ''} · ${totalSets} set${totalSets !== 1 ? 's' : ''} · ${totalVolume > 0 ? totalVolume.toLocaleString() + ' lbs' : 'Bodyweight'}
                 </p>
                 <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${exerciseNames}</p>
             </div>
@@ -1887,7 +1887,11 @@ function renderWorkoutHistory() {
 
 function calculateWorkoutVolume(workout) {
     return workout.exercises.reduce((total, exercise) => {
-        const exerciseVolume = exercise.sets.reduce((sum, set) => sum + (set.weight * set.reps), 0);
+        const exerciseVolume = exercise.sets.reduce((sum, set) => {
+            const mode = set.mode || 'weighted';
+            if (mode !== 'weighted' || !set.weight || !set.reps) return sum;
+            return sum + set.weight * set.reps;
+        }, 0);
         return total + exerciseVolume;
     }, 0);
 }
