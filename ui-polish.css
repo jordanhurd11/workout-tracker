@@ -1,0 +1,641 @@
+/* ============================================================
+   UI POLISH — WorkoutPlanner
+   All improvements are in this file only.
+   TO REVERT: remove the <link rel="stylesheet" href="ui-polish.css">
+   line from index.html, statistics.html, calendar.html, achievements.html
+   ============================================================ */
+
+/* ── Design tokens ── */
+:root {
+    --neon:              #39ff8a;
+    --neon-dim:          rgba(57,255,138,0.10);
+    --neon-glow:         0 0 20px rgba(57,255,138,0.18);
+    --card-shadow:       0 2px 12px rgba(0,0,0,0.28), 0 1px 3px rgba(0,0,0,0.18);
+    --card-shadow-hover: 0 12px 40px rgba(0,0,0,0.5),  0 2px 8px rgba(0,0,0,0.25);
+    --ease-out:          cubic-bezier(0.22, 1, 0.36, 1);
+    --transition:        all 0.24s var(--ease-out);
+}
+
+/* ════════════════════════════════════════════
+   1. TYPOGRAPHY HIERARCHY
+   ════════════════════════════════════════════ */
+
+h2 {
+    font-size: 1.45em;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+h3 { letter-spacing: -0.015em; }
+
+.section-description {
+    font-size: 0.875em;
+    line-height: 1.7;
+    opacity: 0.75;
+    margin-bottom: 22px;
+}
+
+.overview-heading {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 14px;
+}
+
+/* ════════════════════════════════════════════
+   2. STAT CARDS — Premium look
+   ════════════════════════════════════════════ */
+
+.stats-container { gap: 14px; }
+
+.stat-card {
+    border-top: 2px solid var(--neon);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    padding: 20px 22px;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover), var(--neon-glow);
+    border-top-color: var(--neon);
+}
+
+.stat-value { font-size: 2.6em; font-weight: 800; letter-spacing: -0.03em; }
+
+/* Contextual accent colours for specific stats */
+#totalWorkouts   { color: #4f8ef7; }
+#weekStreak      { color: #fb923c; }
+#totalProgress   { color: var(--neon); }
+
+.stat-icon-badge {
+    border-radius: 12px;
+    width: 46px;
+    height: 46px;
+    margin-bottom: 16px;
+}
+.stat-badge-blue   { background: rgba(79,142,247,0.15);   box-shadow: 0 0 18px rgba(79,142,247,0.1); }
+.stat-badge-orange { background: rgba(251,146,60,0.15);   box-shadow: 0 0 18px rgba(251,146,60,0.1); }
+.stat-badge-purple { background: rgba(108,92,210,0.18);   box-shadow: 0 0 18px rgba(108,92,210,0.1); }
+
+.stat-card-sublabel {
+    font-size: 0.76em;
+    margin-top: 5px;
+    opacity: 0.7;
+}
+
+/* ════════════════════════════════════════════
+   3. START WORKOUT CARD — Hero look
+   ════════════════════════════════════════════ */
+
+.start-workout-card {
+    background: linear-gradient(135deg, #1a1545 0%, #0f1d35 55%, #0a1520 100%);
+    border: 1px solid rgba(57,255,138,0.2);
+    border-radius: 18px;
+    padding: 36px 40px;
+    box-shadow: 0 8px 40px rgba(108,92,210,0.2), 0 0 60px rgba(57,255,138,0.03) inset;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle radial glow in the corner */
+.start-workout-card::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(57,255,138,0.07) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.start-workout-content h3 {
+    font-size: 1.7em;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 6px;
+}
+
+.start-workout-content p { opacity: 0.75; font-size: 0.95em; }
+
+/* ════════════════════════════════════════════
+   4. BUTTONS — More polished
+   ════════════════════════════════════════════ */
+
+.btn {
+    border-radius: 10px;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    transition: var(--transition);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, #5a4bbf 100%);
+    box-shadow: 0 4px 14px rgba(108,92,210,0.35);
+}
+.btn-primary:hover {
+    background: linear-gradient(135deg, #7c6fd4 0%, #6c5cd2 100%);
+    box-shadow: 0 6px 20px rgba(108,92,210,0.5);
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 0 4px 14px rgba(34,197,94,0.3);
+}
+.btn-success:hover {
+    box-shadow: 0 6px 20px rgba(34,197,94,0.45);
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 4px 14px rgba(239,68,68,0.3);
+}
+.btn-danger:hover {
+    box-shadow: 0 6px 20px rgba(239,68,68,0.45);
+    transform: translateY(-2px);
+}
+
+.btn-secondary { border-radius: 10px; }
+
+.btn-large {
+    padding: 14px 32px !important;
+    font-size: 1em !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 20px rgba(108,92,210,0.4);
+}
+.btn-large:hover {
+    box-shadow: 0 8px 28px rgba(57,255,138,0.25), 0 4px 16px rgba(108,92,210,0.4) !important;
+    transform: translateY(-2px);
+}
+
+.btn-export {
+    border-radius: 10px;
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+.btn-start-history {
+    border-radius: 8px;
+    font-size: 0.82em;
+    padding: 7px 13px;
+}
+
+.btn-edit-history {
+    border-radius: 8px;
+    font-size: 0.82em;
+    padding: 7px 13px;
+}
+
+/* ════════════════════════════════════════════
+   5. DASHBOARD CARDS — More depth
+   ════════════════════════════════════════════ */
+
+.progress-chart-section,
+.calendar-section,
+.history-section,
+.create-workout-section,
+.stats-page-section,
+.calendar-page-section,
+.records-section,
+.volume-landmarks-section > *,
+.radar-card {
+    box-shadow: var(--card-shadow);
+    border-radius: 16px;
+    transition: box-shadow 0.24s var(--ease-out);
+}
+
+.progress-chart-section,
+.calendar-section,
+.radar-card {
+    border: 1px solid rgba(57,255,138,0.06);
+}
+
+/* ════════════════════════════════════════════
+   6. WORKOUT HISTORY CARDS
+   ════════════════════════════════════════════ */
+
+.workout-item {
+    border-radius: 14px;
+    border-left-width: 4px;
+    transition: var(--transition);
+    margin-bottom: 10px;
+}
+
+.workout-item:hover {
+    transform: translateX(5px);
+    box-shadow: var(--card-shadow-hover);
+    border-left-color: var(--neon) !important;
+}
+
+.workout-details h3 {
+    font-size: 1.05em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+}
+
+.workout-card-actions {
+    gap: 8px;
+}
+
+/* ════════════════════════════════════════════
+   7. PERSONAL RECORDS — Achievements page
+   ════════════════════════════════════════════ */
+
+.pr-card {
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    border: 1px solid var(--border-light);
+}
+
+.pr-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--neon);
+}
+
+.pr-set {
+    font-size: 1.4em;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 5px 0;
+    color: var(--text-dark);
+}
+
+.pr-label {
+    background: var(--neon);
+    color: #0a2a18;
+    border-radius: 5px;
+    font-size: 0.65em;
+    padding: 2px 7px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.pr-estimated {
+    font-size: 0.82em;
+    color: var(--text-light);
+    margin-top: 3px;
+}
+
+.pr-muscle-title {
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+/* ════════════════════════════════════════════
+   8. MUSCLE GROUP STATS (Statistics page)
+   ════════════════════════════════════════════ */
+
+.muscle-group-card {
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    border: 1px solid var(--border-light);
+}
+
+.muscle-group-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: rgba(57,255,138,0.25);
+}
+
+.muscle-group-card-name {
+    font-size: 1.05em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.muscle-group-total-change { font-weight: 800; }
+
+/* ════════════════════════════════════════════
+   9. WEEKLY VOLUME CARDS
+   ════════════════════════════════════════════ */
+
+.vol-summary-card {
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(57,255,138,0.08);
+}
+
+.vol-muscle-card {
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+}
+
+.vol-muscle-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: rgba(57,255,138,0.3);
+}
+
+.vol-sum-value { font-weight: 800; }
+
+/* ════════════════════════════════════════════
+   10. CHART SECTION HEADER
+   ════════════════════════════════════════════ */
+
+.chart-emoji-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+
+.chart-section-header { margin-bottom: 20px; }
+
+.chart-subtitle {
+    font-size: 0.83em;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* ════════════════════════════════════════════
+   11. CALENDAR IMPROVEMENTS
+   ════════════════════════════════════════════ */
+
+.cal-nav h2 {
+    font-size: 1.2em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.cal-day {
+    border-radius: 12px;
+    transition: var(--transition);
+}
+
+.cal-day:not(.cal-blank):hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+.cal-day-number {
+    font-weight: 700;
+    font-size: 0.82em;
+}
+
+.cal-today .cal-day-number {
+    background: var(--primary-blue);
+    box-shadow: 0 2px 8px rgba(108,92,210,0.45);
+}
+
+.cal-event-label {
+    font-weight: 600;
+    font-size: 0.67em;
+    border-radius: 5px;
+}
+
+/* ════════════════════════════════════════════
+   12. SIDEBAR REFINEMENTS
+   ════════════════════════════════════════════ */
+
+.sidebar-menu-item {
+    border-radius: 12px;
+    font-size: 0.875em;
+    font-weight: 500;
+    padding: 11px 15px;
+}
+
+.sidebar-menu-item.active {
+    background: linear-gradient(135deg, var(--primary-blue), #5a4bbf);
+    box-shadow: 0 4px 16px rgba(108,92,210,0.4);
+    font-weight: 700;
+}
+
+.sidebar-menu-item:hover:not(.active) {
+    background: rgba(108,92,210,0.12);
+}
+
+.sidebar-logo-icon {
+    background: linear-gradient(135deg, var(--primary-blue), #5a4bbf);
+    box-shadow: 0 4px 12px rgba(108,92,210,0.4);
+    border-radius: 10px;
+}
+
+.sidebar-logo { font-weight: 800; letter-spacing: -0.01em; }
+
+/* ════════════════════════════════════════════
+   13. HEADER
+   ════════════════════════════════════════════ */
+
+header h1 {
+    font-size: 1.15em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* ════════════════════════════════════════════
+   14. INPUT & FORM IMPROVEMENTS
+   ════════════════════════════════════════════ */
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus,
+textarea:focus {
+    box-shadow: 0 0 0 3px rgba(57,255,138,0.15) !important;
+    border-color: var(--neon) !important;
+}
+
+.exercise-set-input-group {
+    border-radius: 12px;
+    transition: var(--transition);
+}
+.exercise-set-input-group:hover { border-color: rgba(108,92,210,0.4); }
+
+.add-exercise-form,
+.workout-setup-form {
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+}
+
+/* ════════════════════════════════════════════
+   15. EXERCISE SEARCH DROPDOWN
+   ════════════════════════════════════════════ */
+
+.exercise-dropdown {
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+    border: 1px solid rgba(108,92,210,0.3);
+}
+
+.exercise-dropdown-item {
+    border-radius: 6px;
+    margin: 1px 4px;
+}
+.exercise-dropdown-item:hover {
+    background: rgba(57,255,138,0.1);
+    color: var(--neon);
+}
+
+.exercise-dropdown-group {
+    font-size: 0.68em;
+    letter-spacing: 0.08em;
+    color: var(--text-light);
+}
+
+/* ════════════════════════════════════════════
+   16. EMPTY STATES
+   ════════════════════════════════════════════ */
+
+.empty-message {
+    padding: 36px 24px;
+    text-align: center;
+    font-size: 0.9em;
+    line-height: 1.75;
+    color: var(--text-light);
+    opacity: 0.75;
+    border: 1px dashed var(--border-light);
+    border-radius: 12px;
+    margin: 8px 0;
+}
+
+/* ════════════════════════════════════════════
+   17. MODALS — More polished
+   ════════════════════════════════════════════ */
+
+.workout-detail-content,
+.exercise-detail-content,
+.modal-content,
+.plan-modal-content {
+    border-radius: 18px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.workout-detail-header,
+.exercise-detail-header,
+.modal-header,
+.plan-modal-header {
+    padding: 20px 24px;
+}
+
+/* ════════════════════════════════════════════
+   18. RADAR CHART CARD
+   ════════════════════════════════════════════ */
+
+.radar-card {
+    border-radius: 18px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(57,255,138,0.07);
+}
+
+.radar-insights-card {
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+}
+
+/* ════════════════════════════════════════════
+   19. TOAST NOTIFICATIONS
+   ════════════════════════════════════════════ */
+
+.pr-toast, .undo-toast {
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+.pr-toast-header { font-size: 0.95em; }
+
+/* ════════════════════════════════════════════
+   20. SCROLLBAR (WebKit)
+   ════════════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: rgba(108,92,210,0.35);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--primary-blue); }
+
+/* ════════════════════════════════════════════
+   21. LIGHT MODE OVERRIDES
+   ════════════════════════════════════════════ */
+
+body.light-mode .stat-card         { border-top-color: var(--primary-blue); }
+body.light-mode .stat-card:hover   { box-shadow: var(--card-shadow-hover); }
+
+body.light-mode #totalWorkouts  { color: var(--primary-blue); }
+body.light-mode #weekStreak     { color: #ea580c; }
+body.light-mode #totalProgress  { color: #16a34a; }
+
+body.light-mode .start-workout-card {
+    background: linear-gradient(135deg, #ede9fe 0%, #e0d9ff 60%, #ddd6fe 100%);
+    border-color: rgba(108,92,210,0.2);
+    box-shadow: 0 8px 40px rgba(108,92,210,0.12);
+}
+body.light-mode .start-workout-card h3 { color: #3730a3; }
+body.light-mode .start-workout-card p  { color: #5b21b6; opacity: 0.85; }
+
+body.light-mode .sidebar-menu-item.active {
+    background: linear-gradient(135deg, var(--primary-blue), #5a4bbf);
+    color: #ffffff;
+}
+
+body.light-mode .workout-item:hover { border-left-color: var(--primary-blue) !important; }
+
+body.light-mode .pr-card:hover     { border-color: var(--primary-blue); }
+body.light-mode .pr-label          { background: var(--primary-blue); color: #fff; }
+
+body.light-mode .exercise-dropdown {
+    box-shadow: 0 12px 36px rgba(0,0,0,0.15);
+    border-color: rgba(108,92,210,0.25);
+}
+body.light-mode .exercise-dropdown-item:hover {
+    background: rgba(108,92,210,0.08);
+    color: var(--primary-blue);
+}
+
+body.light-mode input:focus,
+body.light-mode select:focus {
+    box-shadow: 0 0 0 3px rgba(108,92,210,0.15) !important;
+    border-color: var(--primary-blue) !important;
+}
+
+body.light-mode .empty-message {
+    border-color: rgba(0,0,0,0.1);
+    color: #6b7280;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+    background: rgba(108,92,210,0.25);
+}
+
+/* ════════════════════════════════════════════
+   22. MOBILE REFINEMENTS
+   ════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .start-workout-card { padding: 26px 22px; }
+    .start-workout-content h3 { font-size: 1.4em; }
+    .stat-value { font-size: 2.1em; }
+    .workout-item:hover { transform: none; }  /* disable horizontal shift on touch */
+    .stat-card:hover    { transform: none; }
+    .pr-card:hover      { transform: none; }
+    main { padding: 18px 16px; }
+}
+
+@media (max-width: 400px) {
+    .stat-value { font-size: 1.85em; }
+    .btn { font-size: 0.88em; padding: 9px 16px; }
+}
