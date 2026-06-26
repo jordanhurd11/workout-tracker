@@ -4229,3 +4229,47 @@ body.light-mode .volume-landmarks-section .section-description {
     margin-bottom: 20px;
     color: #6b7280;
 }
+
+/* ================================================================
+   TARGETED FIXES: Volume Landmarks title pill + Calendar card
+   ================================================================ */
+
+/* Fix 1 — Volume Landmarks heading pill:
+   ui-polish.css applies box-shadow + border-radius to all children
+   of .volume-landmarks-section via the "> *" selector, including h2.
+   Remove that card effect from the heading and description only. */
+body.light-mode .volume-landmarks-section > h2,
+body.light-mode .volume-landmarks-section > p {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Also kill it in dark mode — the h2 pill looks wrong there too */
+.volume-landmarks-section > h2,
+.volume-landmarks-section > p {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Fix 2 — Calendar: restore a subtle card background in light mode
+   so the calendar grid has a distinct surface like in dark mode.
+   Keep the day-cell colours (green/red/blue) unchanged. */
+body.light-mode .calendar-page-section {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+    padding: 24px !important;
+}
+
+body.light-mode .calendar-section {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+    padding: 24px !important;
+}
