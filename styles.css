@@ -4077,3 +4077,111 @@ body.light-mode .vol-muscle-card { padding: 20px 22px; }
 /* ── PADDING: Stats page weekly landmark summary — cramped grid ── */
 body.light-mode .vol-summary-card { padding: 24px; }
 body.light-mode .vol-summary-grid { gap: 18px; }
+
+/* ================================================================
+   LIGHT MODE — CONSISTENT SECTION BACKGROUNDS
+   In dark mode, section wrappers blend with the page background.
+   In light mode they were becoming white cards wrapping white cards.
+   This makes section containers transparent so only individual
+   data cards (muscle cards, vol cards, etc.) appear as white panels.
+   ================================================================ */
+
+/* Statistics page — section wrapper that wraps muscle group cards */
+body.light-mode .stats-page-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Achievements page — section wrapper that wraps PR cards */
+body.light-mode .records-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Calendar page — outer section wrapper */
+body.light-mode .calendar-page-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Dashboard — progress chart section */
+body.light-mode .progress-chart-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+/* Keep the chart container itself white so the canvas draws correctly */
+body.light-mode .progress-chart-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+/* Dashboard — calendar section wrapper */
+body.light-mode .calendar-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Dashboard — history section wrapper */
+body.light-mode .history-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Dashboard — radar section wrapper */
+body.light-mode .radar-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* The actual radar card inside the radar section keeps its white card */
+body.light-mode .radar-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+/* Volume landmarks section wrapper */
+body.light-mode .volume-landmarks-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Stats page section wrapper for the top Percent Increase section */
+body.light-mode .stats-page-section h2,
+body.light-mode .records-section h2,
+body.light-mode .calendar-page-section h2 { color: #111827; }
+
+/* Ensure individual data cards remain as white panels */
+body.light-mode .muscle-group-card,
+body.light-mode .vol-summary-card,
+body.light-mode .vol-muscle-card,
+body.light-mode .coaching-card,
+body.light-mode .pr-card,
+body.light-mode .template-card,
+body.light-mode .stat-card,
+body.light-mode .workout-item {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
