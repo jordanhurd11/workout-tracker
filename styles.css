@@ -4185,3 +4185,47 @@ body.light-mode .workout-item {
     background: #ffffff;
     border: 1px solid #e5e7eb;
 }
+
+/* ================================================================
+   TARGETED FIXES: Weekly Volume Landmarks + Past Workout Names
+   ================================================================ */
+
+/* Fix 1: Past workout template names are white (#ffffff) in both
+   rule sets — override to dark text for light mode */
+body.light-mode .past-workout-item-name      { color: #111827 !important; }
+body.light-mode .past-workout-item-exercises { color: #6b7280 !important; }
+
+/* Also ensure the past workout item card itself has good contrast */
+body.light-mode .past-workout-item {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #111827;
+}
+
+/* Fix 2: Weekly Volume Landmarks — vol-summary-card inner padding
+   was reduced to 24px and the coaching sentence was cramped against
+   the card edges in light mode. Restore generous horizontal padding. */
+body.light-mode .vol-summary-card {
+    padding: 24px 28px;
+}
+
+body.light-mode .vol-coaching-sentence {
+    padding: 10px 16px;
+    margin-left: 0;
+    margin-right: 0;
+    background: rgba(108,92,210,0.07);
+    border-left: 3px solid var(--primary-blue);
+    border-radius: 0 6px 6px 0;
+    color: #374151;
+}
+
+/* Ensure the section description paragraph above the landmarks
+   is just plain readable text with no inherited card/input styling */
+body.light-mode .volume-landmarks-section .section-description {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 20px;
+    color: #6b7280;
+}
