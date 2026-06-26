@@ -3979,3 +3979,101 @@ body.light-mode .history-section h2 { color: #111827; }
 body.light-mode h2 { color: #111827; }
 body.light-mode h3 { color: #111827; }
 body.light-mode label { color: #374151; }
+
+/* ================================================================
+   LIGHT MODE — TARGETED PADDING & TEXT COLOR FIXES
+   Only fixing actual contrast/spacing problems.
+   No global layout changes.
+   ================================================================ */
+
+/* ── Status badge text: pastel colours are unreadable on white ── */
+body.light-mode .vs-none      { background: rgba(107,114,128,0.10); color: #374151; }
+body.light-mode .vs-under     { background: rgba(239,68,68,0.10);   color: #b91c1c; }
+body.light-mode .vs-below     { background: rgba(249,115,22,0.10);  color: #c2410c; }
+body.light-mode .vs-min       { background: rgba(234,179,8,0.10);   color: #92400e; }
+body.light-mode .vs-optimal   { background: rgba(34,197,94,0.10);   color: #15803d; }
+body.light-mode .vs-high      { background: rgba(59,130,246,0.10);  color: #1d4ed8; }
+body.light-mode .vs-excessive { background: rgba(168,85,247,0.10);  color: #6b21a8; }
+
+/* ── Coaching insights: light green (#4ade80) on white fails ── */
+body.light-mode .coaching-good              { color: #14532d; }
+body.light-mode .coaching-good .coaching-icon { color: #16a34a; }
+body.light-mode .coaching-row               { border-bottom-color: rgba(0,0,0,0.05); }
+
+/* ── Template muscle group tags: #a5b4fc on white fails ── */
+body.light-mode .tc-muscle-tag {
+    background: rgba(79,70,229,0.10);
+    color: #3730a3;
+}
+
+/* ── Plan modal header: h2 is white but panel has no background ── */
+body.light-mode .plan-modal-header         { background: #f9fafb; }
+body.light-mode .plan-modal-header h2      { color: #111827; }
+
+/* ── Exercise / Workout detail headers: h2 is white on white card ── */
+body.light-mode .workout-detail-header     { background: #f9fafb; }
+body.light-mode .workout-detail-header h2  { color: #111827; }
+body.light-mode .exercise-detail-header    { background: #f9fafb; }
+body.light-mode .exercise-detail-header h2 { color: #111827; }
+
+/* ── PR timeline: neon hover & dot on white ── */
+body.light-mode .pr-timeline-toggle        { color: #374151; border-color: #d1d5db; }
+body.light-mode .pr-timeline-toggle:hover  { color: #15803d; border-color: #16a34a; }
+body.light-mode .pr-tl-dot-current         { background: #16a34a; box-shadow: 0 0 6px rgba(22,163,74,0.4); }
+body.light-mode .pr-tl-badge               { background: #16a34a; color: #f0fdf4; }
+body.light-mode .pr-tl-value              { color: #111827; }
+body.light-mode .pr-tl-sub                { color: #6b7280; }
+body.light-mode .pr-tl-meta               { color: #9ca3af; opacity: 1; }
+
+/* ── Vol summary badge: inline colours may use --neon on white ── */
+body.light-mode .vol-summary-badge { font-weight: 700; }
+
+/* ── Section / widget description text: too faint at 0.75 opacity ── */
+body.light-mode .section-description { color: #6b7280; opacity: 1; }
+body.light-mode .chart-subtitle      { color: #6b7280; opacity: 1; }
+body.light-mode .radar-legend-note   { color: #6b7280; }
+
+/* ── Plan modal divider text ── */
+body.light-mode .plan-divider-text { color: #6b7280; }
+body.light-mode .plan-optional     { color: #9ca3af; }
+
+/* ── Radar tooltip on light background ── */
+body.light-mode .rtt-val  { color: #15803d; }
+body.light-mode .rtt-name { color: #111827; }
+body.light-mode .rtt-note { color: #6b7280; }
+
+/* ── Calendar tooltip on light background ── */
+body.light-mode .cal-tooltip         { background: #ffffff; }
+body.light-mode .cal-tt-date         { color: #6b7280; }
+body.light-mode .cal-tt-workout-name { color: #15803d; }
+body.light-mode .cal-tt-plan-name    { color: #3730a3; }
+body.light-mode .cal-tt-stats        { color: #6b7280; }
+body.light-mode .cal-tt-exercises    { color: #374151; }
+body.light-mode .cal-tt-rest         { color: #6b7280; }
+body.light-mode .cal-tt-empty        { color: #6b7280; }
+body.light-mode .cal-tt-hint         { color: #4338ca; }
+
+/* ── Template editor: headings inside modal ── */
+body.light-mode .te-add-title { color: #374151; }
+body.light-mode .te-ex-name   { color: #111827; }
+body.light-mode .te-ex-meta   { color: #6b7280; }
+
+/* ── PADDING: PR timeline drawer needs breathing room inside white card ── */
+body.light-mode .pr-timeline-drawer { padding: 4px 2px 4px 4px; }
+
+/* ── PADDING: Vol weekly summary grid items — label too close to value ── */
+body.light-mode .vol-sum-item { padding: 6px 4px; }
+
+/* ── PADDING: Coaching insight card rows — text too close to edges ── */
+body.light-mode .coaching-card   { padding: 22px 24px; }
+body.light-mode .coaching-row    { padding: 9px 0; }
+
+/* ── PADDING: Template cards — buttons touching bottom edge ── */
+body.light-mode .template-card   { padding: 22px 22px 20px; }
+
+/* ── PADDING: Vol muscle cards — content touching side edges ── */
+body.light-mode .vol-muscle-card { padding: 20px 22px; }
+
+/* ── PADDING: Stats page weekly landmark summary — cramped grid ── */
+body.light-mode .vol-summary-card { padding: 24px; }
+body.light-mode .vol-summary-grid { gap: 18px; }
