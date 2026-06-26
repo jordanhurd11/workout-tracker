@@ -3852,3 +3852,673 @@ function renderMuscleRadar() {
     animateRadarChart(canvas, data);
     renderRadarInsights(insightsEl, data);
 }
+
+// ========================================
+// PR HISTORY TIMELINE
+// ========================================
+
+function getPRTimeline(progressKey) {
+    const allEntries = getAllExerciseEntries(workouts);
+    const entries = allEntries
+        .filter(e => (e.progressKey || e.exercise) === progressKey)
+        .sort((a, b) => a.workoutDate.localeCompare(b.workoutDate));
+
+    const timeline = [];
+    let best = 0;
+
+    entries.forEach(entry => {
+        if (entry.progressValue > best) {
+            best = entry.progressValue;
+            const bestSet = entry.sets.reduce(function(b, s) {
+                return getProgressValue([s]) > getProgressValue([b]) ? s : b;
+            }, entry.sets[0]);
+            timeline.push({
+                date:        entry.workoutDate,
+                workoutName: entry.workoutName,
+                set:         bestSet,
+                value:       entry.progressValue,
+                mode:        entry.exerciseMode || getExerciseSetMode(entry.sets)
+            });
+        }
+    });
+
+    return timeline;
+}
+
+function formatPRValue(item) {
+    var mode = item.mode || 'weighted';
+    var set  = item.set;
+    if (mode === 'timed') {
+        var d = set.duration || 0, m = Math.floor(d/60), s = d%60;
+        return m > 0 ? m + 'm ' + s + 's' : d + ' sec';
+    }
+    if (mode === 'bodyweight') return (set.reps || 0) + ' reps';
+    return (set.weight || 0) + ' lbs × ' + (set.reps || 0) + ' reps';
+}
+
+function formatPRSubLabel(item) {
+    var mode = item.mode || 'weighted';
+    if (mode === 'timed')      return 'Duration';
+    if (mode === 'bodyweight') return 'Max Reps';
+    return 'Est. 1RM: ' + item.value.toFixed(1) + ' lbs';
+}
+
+function renderPRTimeline(progressKey) {
+    var timeline = getPRTimeline(progressKey);
+    if (timeline.length <= 1) {
+        return '<div class="pr-tl-empty">' +
+            (timeline.length === 1 ? 'First PR recorded. Complete more workouts to build your PR timeline.' : 'No PR history yet.') +
+            '</div>';
+    }
+
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var html = '<div class="pr-tl-list">';
+    timeline.forEach(function(item, i) {
+        var d    = new Date(item.date + 'T00:00:00');
+        var dateStr = MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+        var isCurrent = i === timeline.length - 1;
+        html += '<div class="pr-tl-item' + (isCurrent ? ' pr-tl-current' : '') + '">' +
+            '<div class="pr-tl-dot' + (isCurrent ? ' pr-tl-dot-current' : '') + '"></div>' +
+            (i < timeline.length - 1 ? '<div class="pr-tl-line"></div>' : '') +
+            '<div class="pr-tl-content">' +
+                '<div class="pr-tl-value">' + formatPRValue(item) + (isCurrent ? ' <span class="pr-tl-badge">Current</span>' : '') + '</div>' +
+                '<div class="pr-tl-sub">' + formatPRSubLabel(item) + '</div>' +
+                '<div class="pr-tl-meta">' + dateStr + ' · ' + item.workoutName + '</div>' +
+            '</div>' +
+            '</div>';
+    });
+    return html + '</div>';
+}
+
+// ========================================
+// RENDER PERSONAL RECORDS v2 (overrides above — adds PR timeline)
+// ========================================
+
+function togglePRTimeline(id) {
+    var drawer = document.getElementById(id);
+    var btn    = drawer ? drawer.previousElementSibling : null;
+    if (!drawer) return;
+    var hidden = drawer.classList.toggle('hidden');
+    if (btn) btn.querySelector('.pr-tl-arrow').textContent = hidden ? '▶' : '▼';
+}
+
+function renderPersonalRecords() {
+    var container = document.getElementById('personalRecords');
+    if (!container) return;
+
+    var query      = (document.getElementById('prSearch') ? document.getElementById('prSearch').value : '').toLowerCase().trim();
+    var allEntries = getAllExerciseEntries(workouts);
+
+    if (allEntries.length === 0) {
+        container.innerHTML = '<p class="empty-message">No workouts yet. Add one to see your personal records!</p>';
+        return;
+    }
+
+    // Find best set per exercise using mode-aware progress value
+    var prByExercise = {};
+    allEntries.forEach(function(entry) {
+        entry.sets.forEach(function(set) {
+            var mode = set.mode || 'weighted';
+            var pv;
+            if (mode === 'timed')           pv = set.duration || 0;
+            else if (mode === 'bodyweight') pv = set.reps || 0;
+            else pv = (set.weight > 0 && set.reps > 0) ? epley1RM(set.weight, set.reps) : 0;
+
+            var key = getProgressKey(entry.exercise, mode);
+            if (!prByExercise[key] || pv > prByExercise[key].pv) {
+                prByExercise[key] = {
+                    exercise:    entry.exercise,
+                    muscleGroup: entry.muscleGroup,
+                    set:         set,
+                    mode:        mode,
+                    pv:          pv,
+                    progressKey: key
+                };
+            }
+        });
+    });
+
+    // Filter by search
+    var byMuscle = {};
+    Object.values(prByExercise)
+        .filter(function(pr) { return !query || pr.exercise.toLowerCase().includes(query); })
+        .forEach(function(pr) {
+            if (!byMuscle[pr.muscleGroup]) byMuscle[pr.muscleGroup] = [];
+            byMuscle[pr.muscleGroup].push(pr);
+        });
+
+    container.innerHTML = '';
+    if (Object.keys(byMuscle).length === 0) {
+        container.innerHTML = '<p class="empty-message">No exercises match your search.</p>';
+        return;
+    }
+
+    Object.keys(byMuscle).sort().forEach(function(muscle) {
+        var section = document.createElement('div');
+        section.className = 'pr-muscle-group';
+        section.innerHTML = '<h3 class="pr-muscle-title">' + muscle + '</h3>';
+
+        byMuscle[muscle].sort(function(a, b) { return a.exercise.localeCompare(b.exercise); }).forEach(function(pr) {
+            var card      = document.createElement('div');
+            card.className = 'pr-card';
+
+            var setDisplay  = formatSetForDisplay(pr.set);
+            var metricLabel;
+            if (pr.mode === 'timed')          metricLabel = 'Best Duration';
+            else if (pr.mode === 'bodyweight') metricLabel = 'Best Reps';
+            else                               metricLabel = 'Estimated 1RM: ' + pr.pv.toFixed(1) + ' lbs';
+
+            var tlId   = 'tl_' + pr.progressKey.replace(/[^a-z0-9]/gi, '_');
+            var tlHtml = renderPRTimeline(pr.progressKey);
+
+            card.innerHTML =
+                '<div class="pr-exercise-name">' + pr.exercise + ' <span class="pr-label">PR</span></div>' +
+                '<div class="pr-set">' + setDisplay + '</div>' +
+                '<div class="pr-estimated"><em>' + metricLabel + '</em></div>' +
+                '<button class="pr-timeline-toggle" onclick="togglePRTimeline(\'' + tlId + '\')"><span class="pr-tl-arrow">&#9654;</span> PR History</button>' +
+                '<div class="pr-timeline-drawer hidden" id="' + tlId + '">' + tlHtml + '</div>';
+
+            section.appendChild(card);
+        });
+
+        container.appendChild(section);
+    });
+}
+
+// ========================================
+// WORKOUT TEMPLATES SYSTEM
+// ========================================
+
+var workoutTemplates      = [];
+var editingTemplateId     = null;
+var templateBuilderExs    = [];   // exercises in editor
+var teModeState           = 'weighted';
+const TEMPLATES_STORAGE_KEY = 'workoutTemplatesData';
+
+function loadTemplates() {
+    try {
+        var stored = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+        if (stored) workoutTemplates = JSON.parse(stored);
+    } catch(e) { workoutTemplates = []; }
+}
+
+function saveTemplatesData() {
+    try { localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(workoutTemplates)); } catch(e) {}
+}
+
+// ── Page render ──────────────────────────
+
+function renderTemplatesPage() {
+    loadTemplates();
+    populateTemplateExerciseDropdown();
+    renderTemplatesList();
+}
+
+function renderTemplatesList() {
+    var container = document.getElementById('templatesList');
+    if (!container) return;
+    var q = (document.getElementById('templateSearch') ? document.getElementById('templateSearch').value : '').toLowerCase().trim();
+
+    var list = workoutTemplates.slice().sort(function(a,b){ return b.updatedAt.localeCompare(a.updatedAt); });
+    if (q) {
+        list = list.filter(function(t) {
+            return t.templateName.toLowerCase().includes(q) ||
+                (t.description||'').toLowerCase().includes(q) ||
+                t.exercises.some(function(e){ return e.exercise.toLowerCase().includes(q) || (e.muscleGroup||'').toLowerCase().includes(q); });
+        });
+    }
+
+    container.innerHTML = '';
+    if (list.length === 0) {
+        container.innerHTML =
+            '<div class="template-empty">' +
+            '<div class="template-empty-icon">📋</div>' +
+            '<h3>No workout templates yet' + (q ? ' matching your search' : '') + '</h3>' +
+            (q ? '' : '<p>Create reusable routines like Push Day, Pull Day, Legs, Upper, or Full Body to start workouts faster.</p>' +
+                '<button class="btn btn-primary" onclick="openTemplateEditor(null)">Create Your First Template</button>') +
+            '</div>';
+        return;
+    }
+
+    list.forEach(function(t) { container.appendChild(createTemplateCard(t)); });
+}
+
+function createTemplateCard(t) {
+    var muscles   = [...new Set(t.exercises.map(function(e){ return e.muscleGroup || ''; }).filter(Boolean))].slice(0,4);
+    var totalSets = t.exercises.reduce(function(s,e){ return s + (e.sets ? e.sets.length : 0); }, 0);
+    var updDate   = t.updatedAt ? new Date(t.updatedAt + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+
+    var card = document.createElement('div');
+    card.className = 'template-card';
+    card.innerHTML =
+        '<div class="tc-header">' +
+            '<h3 class="tc-name">' + t.templateName + '</h3>' +
+            (t.description ? '<p class="tc-desc">' + t.description + '</p>' : '') +
+        '</div>' +
+        '<div class="tc-muscles">' + muscles.map(function(m){ return '<span class="tc-muscle-tag">' + m + '</span>'; }).join('') + '</div>' +
+        '<div class="tc-stats">' +
+            '<span>' + t.exercises.length + ' exercise' + (t.exercises.length!==1?'s':'') + '</span>' +
+            '<span>' + totalSets + ' set' + (totalSets!==1?'s':'') + '</span>' +
+            (updDate ? '<span>Updated ' + updDate + '</span>' : '') +
+        '</div>' +
+        '<div class="tc-actions">' +
+            '<button class="btn btn-primary tc-btn-start" onclick="startFromTemplate(\'' + t.templateId + '\')">▶ Start Workout</button>' +
+            '<button class="btn btn-secondary tc-btn" onclick="openTemplateEditor(\'' + t.templateId + '\')">✏️ Edit</button>' +
+            '<button class="btn tc-btn tc-btn-dup" onclick="duplicateTemplate(\'' + t.templateId + '\')">⧉ Duplicate</button>' +
+            '<button class="btn btn-delete tc-btn" onclick="deleteTemplate(\'' + t.templateId + '\')">Delete</button>' +
+        '</div>';
+    return card;
+}
+
+// ── Template Editor ──────────────────────
+
+function openTemplateEditor(templateId) {
+    editingTemplateId = templateId;
+    templateBuilderExs = [];
+
+    if (templateId) {
+        var t = workoutTemplates.find(function(x){ return x.templateId === templateId; });
+        if (!t) return;
+        document.getElementById('teTitle').textContent     = 'Edit Template';
+        document.getElementById('teName').value            = t.templateName;
+        document.getElementById('teDescription').value     = t.description || '';
+        templateBuilderExs = t.exercises.map(function(e){ return Object.assign({}, e, { sets: e.sets ? e.sets.map(function(s){ return Object.assign({}, s); }) : [] }); });
+    } else {
+        document.getElementById('teTitle').textContent = 'Create Template';
+        document.getElementById('teName').value        = '';
+        document.getElementById('teDescription').value = '';
+    }
+
+    clearTEAddForm();
+    renderTEExerciseList();
+    document.getElementById('templateEditorModal').classList.remove('hidden');
+}
+
+function closeTemplateEditor() {
+    document.getElementById('templateEditorModal').classList.add('hidden');
+    editingTemplateId = null;
+    templateBuilderExs = [];
+}
+
+function clearTEAddForm() {
+    var si = document.getElementById('teExerciseSearch');
+    var hi = document.getElementById('teExerciseSelect');
+    if (si) si.value = '';
+    if (hi) hi.value = '';
+    var ns = document.getElementById('teNumSets');
+    if (ns) ns.value = '';
+    document.getElementById('teSetDefaults').innerHTML = '';
+    teModeState = 'weighted';
+    updateTEModeToggleUI(false);
+    var dd = document.getElementById('teExerciseDropdown');
+    if (dd) dd.classList.add('hidden');
+}
+
+function renderTEExerciseList() {
+    var list = document.getElementById('teExercisesList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (templateBuilderExs.length === 0) {
+        list.innerHTML = '<p class="te-ex-empty">No exercises added yet.</p>';
+        return;
+    }
+    templateBuilderExs.forEach(function(ex, i) {
+        var mode     = ex.mode || (ex.sets && ex.sets[0] ? ex.sets[0].mode || 'weighted' : 'weighted');
+        var setsSum  = ex.sets ? ex.sets.length : 0;
+        var setLabel = setsSum === 1 ? '1 set' : setsSum + ' sets';
+        var defVal   = '';
+        if (ex.sets && ex.sets.length > 0) {
+            var s = ex.sets[0];
+            if (mode === 'timed')           defVal = ' · ' + (s.duration||0) + 's';
+            else if (mode === 'bodyweight') defVal = ' · BW × ' + (s.reps||'?');
+            else                            defVal = ' · ' + (s.weight||'?') + ' lbs × ' + (s.reps||'?');
+        }
+
+        var row = document.createElement('div');
+        row.className = 'te-ex-item';
+        row.innerHTML =
+            '<div class="te-ex-info">' +
+                '<span class="te-ex-name">' + ex.exercise + '</span>' +
+                '<span class="te-ex-meta">' + (ex.muscleGroup||'') + ' · ' + setLabel + defVal + '</span>' +
+            '</div>' +
+            '<button class="btn-remove-plan-ex" onclick="removeTEExercise(' + i + ')">✕</button>';
+        list.appendChild(row);
+    });
+}
+
+function removeTEExercise(index) {
+    templateBuilderExs.splice(index, 1);
+    renderTEExerciseList();
+}
+
+function setTEMode(mode) {
+    teModeState = mode;
+    document.getElementById('teModeBtnBW') && document.getElementById('teModeBtnBW').classList.toggle('mode-btn-active', mode === 'bodyweight');
+    document.getElementById('teModeBtnW')  && document.getElementById('teModeBtnW').classList.toggle('mode-btn-active',  mode === 'weighted');
+    refreshTESetInputs();
+}
+
+function updateTEModeToggleUI(show, activeMode) {
+    var tog = document.getElementById('teModeToggle');
+    if (!tog) return;
+    if (!show) { tog.classList.add('hidden'); return; }
+    tog.classList.remove('hidden');
+    document.getElementById('teModeBtnBW') && document.getElementById('teModeBtnBW').classList.toggle('mode-btn-active', activeMode === 'bodyweight');
+    document.getElementById('teModeBtnW')  && document.getElementById('teModeBtnW').classList.toggle('mode-btn-active',  activeMode === 'weighted');
+}
+
+function refreshTESetInputs() {
+    var n = parseInt(document.getElementById('teNumSets') ? document.getElementById('teNumSets').value : 0) || 0;
+    var container = document.getElementById('teSetDefaults');
+    if (!container || n <= 0) { if (container) container.innerHTML = ''; return; }
+
+    container.innerHTML = '';
+    for (var i = 1; i <= Math.min(n, 10); i++) {
+        var row = document.createElement('div');
+        row.className = 'current-set-edit-row';
+        var inner = '<span class="set-label">Set ' + i + '</span>';
+        if (teModeState === 'timed') {
+            inner += '<input type="number" class="set-weight-edit te-min" min="0" placeholder="min" value="0">' +
+                     '<span class="set-unit">m</span>' +
+                     '<input type="number" class="set-reps-edit te-sec" min="0" max="59" placeholder="sec" value="0">' +
+                     '<span class="set-unit">s</span>';
+        } else if (teModeState === 'bodyweight') {
+            inner += '<span class="set-unit">BW ×</span>' +
+                     '<input type="number" class="set-reps-edit" min="1" placeholder="reps">' +
+                     '<span class="set-unit">reps</span>';
+        } else {
+            inner += '<input type="number" class="set-weight-edit" min="0" step="0.5" placeholder="lbs">' +
+                     '<span class="set-unit">lbs ×</span>' +
+                     '<input type="number" class="set-reps-edit" min="1" placeholder="reps">' +
+                     '<span class="set-unit">reps</span>';
+        }
+        row.innerHTML = inner;
+        container.appendChild(row);
+    }
+}
+
+function addExerciseToTemplateBuilder() {
+    var exName = document.getElementById('teExerciseSelect') ? document.getElementById('teExerciseSelect').value.trim() : '';
+    if (!exName) { alert('Please select an exercise.'); return; }
+    var n = parseInt(document.getElementById('teNumSets') ? document.getElementById('teNumSets').value : 0) || 0;
+    if (n <= 0) { alert('Please enter number of sets.'); return; }
+
+    var rows = document.getElementById('teSetDefaults') ? document.getElementById('teSetDefaults').querySelectorAll('.current-set-edit-row') : [];
+    var sets = [];
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (teModeState === 'timed') {
+            var m = parseInt(row.querySelector('.te-min') ? row.querySelector('.te-min').value : 0) || 0;
+            var s = parseInt(row.querySelector('.te-sec') ? row.querySelector('.te-sec').value : 0) || 0;
+            sets.push({ duration: m*60+s, mode: 'timed' });
+        } else if (teModeState === 'bodyweight') {
+            sets.push({ reps: parseInt(row.querySelector('.set-reps-edit') ? row.querySelector('.set-reps-edit').value : 0) || 0, mode: 'bodyweight' });
+        } else {
+            sets.push({
+                weight: parseFloat(row.querySelector('.set-weight-edit') ? row.querySelector('.set-weight-edit').value : 0) || 0,
+                reps:   parseInt(row.querySelector('.set-reps-edit') ? row.querySelector('.set-reps-edit').value : 0) || 0,
+                mode:   'weighted'
+            });
+        }
+    }
+
+    templateBuilderExs.push({
+        exercise:    exName,
+        muscleGroup: EXERCISE_TO_MUSCLE[exName] || '',
+        mode:        teModeState,
+        sets:        sets
+    });
+
+    renderTEExerciseList();
+    clearTEAddForm();
+}
+
+function saveTemplate() {
+    var name = document.getElementById('teName') ? document.getElementById('teName').value.trim() : '';
+    if (!name) { alert('Please enter a template name.'); return; }
+
+    var now = new Date().toISOString().split('T')[0];
+    if (editingTemplateId) {
+        var idx = workoutTemplates.findIndex(function(t){ return t.templateId === editingTemplateId; });
+        if (idx !== -1) {
+            workoutTemplates[idx].templateName  = name;
+            workoutTemplates[idx].description   = document.getElementById('teDescription') ? document.getElementById('teDescription').value.trim() : '';
+            workoutTemplates[idx].exercises     = templateBuilderExs.slice();
+            workoutTemplates[idx].updatedAt     = now;
+        }
+    } else {
+        workoutTemplates.push({
+            templateId:   crypto.randomUUID(),
+            templateName: name,
+            description:  document.getElementById('teDescription') ? document.getElementById('teDescription').value.trim() : '',
+            createdAt:    now,
+            updatedAt:    now,
+            exercises:    templateBuilderExs.slice()
+        });
+    }
+    saveTemplatesData();
+    closeTemplateEditor();
+    renderTemplatesList();
+    showToastMsg('Template saved!', '#22c55e');
+}
+
+function deleteTemplate(templateId) {
+    if (!confirm('Delete this template? This will not affect completed workouts.')) return;
+    workoutTemplates = workoutTemplates.filter(function(t){ return t.templateId !== templateId; });
+    saveTemplatesData();
+    renderTemplatesList();
+}
+
+function duplicateTemplate(templateId) {
+    var orig = workoutTemplates.find(function(t){ return t.templateId === templateId; });
+    if (!orig) return;
+    var now = new Date().toISOString().split('T')[0];
+    var copy = JSON.parse(JSON.stringify(orig));
+    copy.templateId   = crypto.randomUUID();
+    copy.templateName = orig.templateName + ' Copy';
+    copy.createdAt    = now;
+    copy.updatedAt    = now;
+    workoutTemplates.push(copy);
+    saveTemplatesData();
+    renderTemplatesList();
+    showToastMsg('Template duplicated!', '#6c5cd2');
+}
+
+// ── Start workout from template ──────────
+
+function startFromTemplate(templateId) {
+    sessionStorage.setItem('pendingTemplateId', templateId);
+    location.href = 'index.html';
+}
+
+function loadFromTemplateObj(template) {
+    if (createWorkoutSection) createWorkoutSection.classList.remove('hidden');
+    if (workoutNameInput) workoutNameInput.value = template.templateName;
+    setDefaultDate();
+    var sf = document.getElementById('workoutSetupForm');
+    if (sf) sf.classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
+    pendingTemplate = template.exercises.map(function(ex){
+        return Object.assign({}, ex, { sets: (ex.sets||[]).map(function(s){ return Object.assign({}, s); }) });
+    });
+    if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Save past workout as template ────────
+
+function saveWorkoutAsTemplate(workoutId) {
+    loadTemplates();
+    var workout = workouts.find(function(w){ return w.id === workoutId; });
+    if (!workout) return;
+    var now = new Date().toISOString().split('T')[0];
+    workoutTemplates.push({
+        templateId:   crypto.randomUUID(),
+        templateName: workout.name,
+        description:  '',
+        createdAt:    now,
+        updatedAt:    now,
+        exercises:    workout.exercises.map(function(ex){
+            return {
+                exercise:    ex.exercise,
+                muscleGroup: ex.muscleGroup,
+                mode:        getExerciseSetMode(ex.sets),
+                sets:        ex.sets.map(function(s){ return Object.assign({}, s); })
+            };
+        })
+    });
+    saveTemplatesData();
+    showToastMsg('Template saved: ' + workout.name, '#22c55e');
+}
+
+// ── Exercise dropdown for template editor ─
+
+function populateTemplateExerciseDropdown() {
+    var dropdown = document.getElementById('teExerciseDropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+    Object.entries(EXERCISES_BY_MUSCLE).forEach(function(entry) {
+        var muscle = entry[0], exercises = entry[1];
+        var g = document.createElement('div');
+        g.className = 'exercise-dropdown-group';
+        g.textContent = muscle;
+        dropdown.appendChild(g);
+        exercises.forEach(function(ex) {
+            var item = document.createElement('div');
+            item.className = 'exercise-dropdown-item';
+            item.textContent = ex;
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                selectTEExercise(ex);
+            });
+            dropdown.appendChild(item);
+        });
+    });
+
+    var searchInput = document.getElementById('teExerciseSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterTEDropdown);
+        searchInput.addEventListener('focus', function() {
+            filterTEDropdown();
+            dropdown.classList.remove('hidden');
+        });
+        searchInput.addEventListener('blur', function() {
+            setTimeout(function() { dropdown.classList.add('hidden'); }, 160);
+        });
+    }
+}
+
+function filterTEDropdown() {
+    var dd = document.getElementById('teExerciseDropdown');
+    var si = document.getElementById('teExerciseSearch');
+    if (!dd || !si) return;
+    var q = si.value.toLowerCase().trim();
+    dd.classList.remove('hidden');
+    dd.querySelectorAll('.exercise-dropdown-item').forEach(function(item) {
+        item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    dd.querySelectorAll('.exercise-dropdown-group').forEach(function(group) {
+        var el = group.nextElementSibling, vis = false;
+        while (el && !el.classList.contains('exercise-dropdown-group')) {
+            if (el.style.display !== 'none') vis = true;
+            el = el.nextElementSibling;
+        }
+        group.style.display = vis ? '' : 'none';
+    });
+}
+
+function selectTEExercise(value) {
+    var hi = document.getElementById('teExerciseSelect');
+    var si = document.getElementById('teExerciseSearch');
+    var dd = document.getElementById('teExerciseDropdown');
+    if (hi) hi.value = value;
+    if (si) si.value = value;
+    if (dd) dd.classList.add('hidden');
+
+    var type = getExerciseType(value);
+    if (type === 'optional_weighted') {
+        teModeState = 'bodyweight';
+        updateTEModeToggleUI(true, 'bodyweight');
+    } else {
+        teModeState = type === 'timed' ? 'timed' : (type === 'bodyweight' ? 'bodyweight' : 'weighted');
+        updateTEModeToggleUI(false);
+    }
+    refreshTESetInputs();
+}
+
+// ── Generic toast helper ─────────────────
+
+function showToastMsg(msg, color) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(0);background:' + color + ';color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;font-size:0.9em;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.4);transition:opacity 0.4s';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.style.opacity = '0'; setTimeout(function() { t.remove(); }, 400); }, 2500);
+}
+
+// ── Templates page DOMContentLoaded hook (appended) ──
+(function() {
+    var _orig = document.addEventListener;
+    // Run templates page init if needed — triggered by currentPage already set
+    if (typeof currentPage !== 'undefined' && currentPage === 'templates') {
+        document.addEventListener('DOMContentLoaded', function() {
+            // renderTemplatesPage already called in main DOMContentLoaded if page is 'templates'
+            // but we add it here as a fallback
+            if (typeof renderTemplatesPage === 'function' && !document.getElementById('templatesList').children.length) {
+                renderTemplatesPage();
+            }
+        });
+    }
+})();
+
+// Patch the single DOMContentLoaded to handle templates + pendingTemplateId
+document.addEventListener('DOMContentLoaded', function patchDCL() {
+    // Templates page
+    if (typeof currentPage !== 'undefined' && currentPage === 'templates') {
+        if (typeof renderTemplatesPage === 'function') renderTemplatesPage();
+    }
+    // Dashboard: start workout from template
+    if (typeof currentPage !== 'undefined' && currentPage === 'dashboard') {
+        var ptId = sessionStorage.getItem('pendingTemplateId');
+        if (ptId) {
+            sessionStorage.removeItem('pendingTemplateId');
+            if (typeof loadTemplates === 'function') loadTemplates();
+            if (typeof workoutTemplates !== 'undefined') {
+                var tpl = workoutTemplates.find(function(t){ return t.templateId === ptId; });
+                if (tpl && typeof loadFromTemplateObj === 'function') {
+                    setTimeout(function(){ loadFromTemplateObj(tpl); }, 150);
+                }
+            }
+        }
+    }
+});
+
+// ── Override renderWorkoutHistory to add "Save as Template" button ──
+var _origRWH = renderWorkoutHistory;
+renderWorkoutHistory = function() {
+    _origRWH();
+    // Add "Save as Template" buttons to all cards after render
+    if (workoutHistoryContainer) {
+        workoutHistoryContainer.querySelectorAll('.workout-card-actions').forEach(function(actions) {
+            if (actions.querySelector('.btn-save-template')) return; // already added
+            var editBtn = actions.querySelector('.btn-edit-history');
+            var wid = null;
+            // Find workout id from the onclick of the Start button
+            var startBtn = actions.querySelector('.btn-start-history');
+            if (startBtn) {
+                var m = startBtn.getAttribute('onclick').match(/'([^']+)'\)/);
+                if (m) wid = m[1];
+            }
+            if (!wid) return;
+            var btn = document.createElement('button');
+            btn.className = 'btn btn-save-template';
+            btn.textContent = '📋 Save as Template';
+            btn.setAttribute('onclick', "event.stopPropagation(); saveWorkoutAsTemplate('" + wid + "')");
+            if (editBtn) {
+                actions.insertBefore(btn, editBtn.nextSibling);
+            } else {
+                actions.insertBefore(btn, actions.lastElementChild);
+            }
+        });
+    }
+};

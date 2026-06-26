@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Templates — WorkoutPlanner</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="ui-polish.css">
+</head>
+<body data-page="templates">
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">⚡</div>
+                <span>WorkoutPlanner</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item" onclick="location.href='index.html'">
+                    <span class="sidebar-icon">📊</span><span>Dashboard</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='statistics.html'">
+                    <span class="sidebar-icon">📈</span><span>Workout Statistics</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='calendar.html'">
+                    <span class="sidebar-icon">📅</span><span>Calendar</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="location.href='achievements.html'">
+                    <span class="sidebar-icon">🏆</span><span>Achievements</span>
+                </li>
+                <li class="sidebar-menu-item active" onclick="location.href='templates.html'">
+                    <span class="sidebar-icon">📋</span><span>Templates</span>
+                </li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="sidebar-menu-item" id="themeToggle" onclick="toggleTheme()">
+                    <span class="sidebar-icon" id="themeIcon">☀️</span><span id="themeLabel">Light Mode</span>
+                </div>
+                <div class="sidebar-menu-item sidebar-settings">
+                    <span class="sidebar-icon">⚙️</span><span>Settings</span>
+                </div>
+            </div>
+        </aside>
+
+        <div style="flex:1;display:flex;flex-direction:column;height:100%;overflow:hidden;">
+            <header><h1>Workout Templates</h1></header>
+
+            <main>
+                <!-- Controls row -->
+                <div class="template-controls">
+                    <div class="template-search-wrap">
+                        <input type="text" id="templateSearch" class="history-search-input"
+                            placeholder="🔍  Search templates, exercises, or muscle groups..."
+                            oninput="renderTemplatesList()">
+                    </div>
+                    <button class="btn btn-primary" onclick="openTemplateEditor(null)">+ Create Template</button>
+                </div>
+
+                <!-- Template cards grid -->
+                <div id="templatesList" class="templates-grid"></div>
+            </main>
+
+            <footer>
+                <p>&copy; 2025 Workout Progress Tracker. Stay consistent, stay strong!</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Template Editor Modal ── -->
+    <div id="templateEditorModal" class="template-editor-modal hidden">
+        <div class="te-backdrop" id="teBackdrop" onclick="closeTemplateEditor()"></div>
+        <div class="te-content">
+            <div class="te-header">
+                <h2 id="teTitle">Create Template</h2>
+                <button class="btn btn-close" onclick="closeTemplateEditor()">✕</button>
+            </div>
+            <div class="te-body">
+                <!-- Name + description -->
+                <div class="form-group">
+                    <label for="teName">Template Name</label>
+                    <input type="text" id="teName" placeholder="e.g., Push Day, Leg Day, Full Body">
+                </div>
+                <div class="form-group">
+                    <label for="teDescription">Description <span class="plan-optional">(optional)</span></label>
+                    <input type="text" id="teDescription" placeholder="e.g., Chest, shoulders, and triceps">
+                </div>
+
+                <!-- Exercise list -->
+                <div id="teExercisesList" class="te-exercises-list"></div>
+
+                <!-- Add exercise form -->
+                <div class="te-add-exercise-form">
+                    <h4 class="te-add-title">Add Exercise</h4>
+                    <div class="form-group">
+                        <label>Exercise</label>
+                        <div class="exercise-search-wrapper">
+                            <input type="text" id="teExerciseSearch" class="exercise-search-input"
+                                placeholder="Search exercises..." autocomplete="off">
+                            <div id="teExerciseDropdown" class="exercise-dropdown hidden"></div>
+                            <input type="hidden" id="teExerciseSelect" value="">
+                        </div>
+                    </div>
+                    <div id="teModeToggle" class="exercise-mode-toggle hidden">
+                        <label>Mode</label>
+                        <div class="mode-toggle-group">
+                            <button type="button" class="mode-btn mode-btn-active" id="teModeBtnBW" onclick="setTEMode('bodyweight')">Bodyweight</button>
+                            <button type="button" class="mode-btn" id="teModeBtnW" onclick="setTEMode('weighted')">+ Weight</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="teNumSets">Number of Sets</label>
+                        <input type="number" id="teNumSets" placeholder="3" min="1" max="20"
+                            oninput="refreshTESetInputs()">
+                    </div>
+                    <div id="teSetDefaults" class="te-set-defaults"></div>
+                    <button class="btn btn-secondary" onclick="addExerciseToTemplateBuilder()">+ Add to Template</button>
+                </div>
+
+                <div class="te-actions">
+                    <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+                    <button class="btn btn-secondary" onclick="closeTemplateEditor()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
