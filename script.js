@@ -1086,8 +1086,8 @@ function renderExerciseProgress() {
         card.innerHTML = `
             <div class="progress-card-exercise">${entry.exercise}</div>
             <div class="progress-card-muscle">${entry.muscleGroup}</div>
-            <div class="progress-card-1rm">${entry.highestWeight} lbs</div>
-            <div class="progress-card-1rm-label">Highest Weight</div>
+            <div class="progress-card-1rm">${formatProgressMetric(entry)}</div>
+            <div class="progress-card-1rm-label">${progressMetricLabel(entry)}</div>
             <div class="progress-card-date">${dateStr}</div>
             <div class="progress-card-sets">${entry.sets.length} set${entry.sets.length !== 1 ? 's' : ''}</div>
             <div class="progress-card-click-hint">Click for history</div>
@@ -1532,18 +1532,23 @@ function renderPersonalRecords() {
         return;
     }
 
-    // Find best set (by Epley 1RM) for each exercise
+    // Find best set per exercise using mode-aware progress value
     const prByExercise = {};
     allEntries.forEach(entry => {
         entry.sets.forEach(set => {
-            const est1RM = epley1RM(set.weight, set.reps);
-            if (!prByExercise[entry.exercise] || est1RM > prByExercise[entry.exercise].est1RM) {
+            const mode = set.mode || 'weighted';
+            let pv;
+            if (mode === 'timed')      pv = set.duration || 0;
+            else if (mode === 'bodyweight') pv = set.reps || 0;
+            else pv = (set.weight > 0 && set.reps > 0) ? epley1RM(set.weight, set.reps) : 0;
+
+            if (!prByExercise[entry.exercise] || pv > prByExercise[entry.exercise].pv) {
                 prByExercise[entry.exercise] = {
-                    exercise: entry.exercise,
+                    exercise:    entry.exercise,
                     muscleGroup: entry.muscleGroup,
-                    weight: set.weight,
-                    reps: set.reps,
-                    est1RM: est1RM
+                    set:         set,
+                    mode:        mode,
+                    pv:          pv
                 };
             }
         });
@@ -1571,10 +1576,15 @@ function renderPersonalRecords() {
         byMuscle[muscle].sort((a, b) => a.exercise.localeCompare(b.exercise)).forEach(pr => {
             const card = document.createElement('div');
             card.className = 'pr-card';
+            const setDisplay = formatSetForDisplay(pr.set);
+            let metricLabel;
+            if (pr.mode === 'timed')          metricLabel = 'Best Duration';
+            else if (pr.mode === 'bodyweight') metricLabel = 'Best Reps';
+            else                               metricLabel = 'Estimated 1RM: ' + pr.pv.toFixed(1) + ' lbs';
             card.innerHTML = `
                 <div class="pr-exercise-name">${pr.exercise} <span class="pr-label">PR</span></div>
-                <div class="pr-set">${pr.weight} lbs × ${pr.reps} reps</div>
-                <div class="pr-estimated"><em>Estimated 1RM: ${pr.est1RM.toFixed(1)} lbs</em></div>
+                <div class="pr-set">${setDisplay}</div>
+                <div class="pr-estimated"><em>${metricLabel}</em></div>
             `;
             section.appendChild(card);
         });
@@ -1617,7 +1627,7 @@ function openExerciseDetail(exerciseName) {
         item.className = 'exercise-workout-item';
         item.innerHTML = `
             <div class="exercise-workout-item-date">${entry.workoutName} - ${dateStr}</div>
-            <div class="exercise-workout-item-1rm">Highest: ${entry.highestWeight} lbs</div>
+            <div class="exercise-workout-item-1rm">${progressMetricLabel(entry)}: ${formatProgressMetric(entry)}</div>
             <div class="exercise-workout-item-sets">
                 ${entry.sets.map((set, i) => `Set ${i + 1}: ${formatSetForDisplay(set)}`).join(' | ')}
             </div>
@@ -1721,7 +1731,7 @@ function drawExerciseProgressChart(history) {
     ctx.fillRect(0, 0, width, height);
 
     // Get data
-    const weights = history.map(h => h.highestWeight);
+    const weights = history.map(h => h.progressValue || h.highestWeight || 0);
     const maxWeight = Math.max(...weights);
     const minWeight = Math.min(...weights);
     const weightRange = maxWeight - minWeight || maxWeight;
@@ -1771,7 +1781,7 @@ function drawExerciseProgressChart(history) {
 
     history.forEach((entry, i) => {
         const x = padding + (chartWidth / (history.length - 1)) * i;
-        const y = height - padding - ((entry.highestWeight - minWeight) / weightRange) * chartHeight;
+        const y = height - padding - (((entry.progressValue || entry.highestWeight || 0) - minWeight) / weightRange) * chartHeight;
 
         if (i === 0) {
             ctx.moveTo(x, y);
@@ -1785,7 +1795,7 @@ function drawExerciseProgressChart(history) {
     ctx.fillStyle = '#667eea';
     history.forEach((entry, i) => {
         const x = padding + (chartWidth / (history.length - 1)) * i;
-        const y = height - padding - ((entry.highestWeight - minWeight) / weightRange) * chartHeight;
+        const y = height - padding - (((entry.progressValue || entry.highestWeight || 0) - minWeight) / weightRange) * chartHeight;
 
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -2982,26 +2992,27 @@ function checkForNewPRs(workout) {
     const allPrev = getAllExerciseEntries(workouts.filter(w => w.id !== workout.id));
     const prevBestByExercise = {};
     allPrev.forEach(e => {
-        if (!prevBestByExercise[e.exercise] || e.best1RM > prevBestByExercise[e.exercise]) {
-            prevBestByExercise[e.exercise] = e.best1RM;
+        if (!prevBestByExercise[e.exercise] || e.progressValue > prevBestByExercise[e.exercise]) {
+            prevBestByExercise[e.exercise] = e.progressValue;
         }
     });
 
     const newPRs = [];
     workout.exercises.forEach(exercise => {
-        const newBest1RM = getBest1RM(exercise.sets);
-        const prevBest   = prevBestByExercise[exercise.exercise] || 0;
+        const newBestPV = getProgressValue(exercise.sets);
+        const prevBest  = prevBestByExercise[exercise.exercise] || 0;
 
-        if (newBest1RM > prevBest) {
-            // Find the actual set with the highest 1RM
-            const bestSet = exercise.sets.reduce((best, set) =>
-                epley1RM(set.weight, set.reps) > epley1RM(best.weight, best.reps) ? set : best
-            );
+        if (newBestPV > prevBest) {
+            // Find the set with the best progress value
+            const bestSet = exercise.sets.reduce((best, set) => {
+                const pvSet  = getProgressValue([set]);
+                const pvBest = getProgressValue([best]);
+                return pvSet > pvBest ? set : best;
+            }, exercise.sets[0]);
             newPRs.push({
                 exercise: exercise.exercise,
-                weight: bestSet.weight,
-                reps: bestSet.reps,
-                est1RM: newBest1RM
+                set:      bestSet,
+                pv:       newBestPV
             });
         }
     });
@@ -3023,9 +3034,7 @@ function showPRCelebration(prs) {
     toast.innerHTML =
         '<div class="pr-toast-header">🎉 New Personal Record' + plural + '!</div>' +
         prs.map(pr =>
-            '<div class="pr-toast-item">🏆 ' + pr.exercise + ': ' +
-            pr.weight + ' lbs × ' + pr.reps + ' reps' +
-            '<span class="pr-toast-1rm">Est. 1RM: ' + pr.est1RM.toFixed(1) + ' lbs</span></div>'
+            '<div class="pr-toast-item">🏆 ' + pr.exercise + ': ' + formatSetForDisplay(pr.set) + '</div>'
         ).join('') +
         '<div class="pr-toast-link">View Personal Records →</div>';
 
@@ -3339,6 +3348,25 @@ function getAdaptiveAverageData() {
     avgTotal = avgTotal / divisor;
 
     return { avg: avg, avgTotal: avgTotal, divisor: divisor, label: avgLabel, weekVols: weekVols };
+}
+
+// Returns a display string for an entry's best progress metric
+function formatProgressMetric(entry) {
+    const mode = entry.exerciseMode || getExerciseSetMode(entry.sets);
+    if (mode === 'timed') {
+        const d = entry.progressValue || 0;
+        const m = Math.floor(d / 60), s = d % 60;
+        return m > 0 ? m + 'm ' + s + 's' : d + ' sec';
+    }
+    if (mode === 'bodyweight') return (entry.progressValue || 0) + ' reps';
+    return (entry.highestWeight || 0) + ' lbs';
+}
+
+function progressMetricLabel(entry) {
+    const mode = entry.exerciseMode || getExerciseSetMode(entry.sets);
+    if (mode === 'timed')      return 'Best Duration';
+    if (mode === 'bodyweight') return 'Best Reps';
+    return 'Highest Weight';
 }
 
 function getVolumeStatus(sets, muscle) {
