@@ -3879,3 +3879,103 @@ body.light-mode .te-header { background: #ffffff; }
 body.light-mode .te-ex-item { background: #f9fafb; }
 body.light-mode .te-add-exercise-form { background: rgba(108,92,210,0.04); }
 body.light-mode .tc-muscle-tag { background: rgba(108,92,210,0.1); color: var(--primary-blue); }
+
+/* ================================================
+   LIGHT MODE FIXES (from PDF review)
+   ================================================ */
+
+/* a. Calendar month/weekday labels — dark text in light mode */
+body.light-mode .cal-nav h2,
+body.light-mode #dashCalMonthYear,
+body.light-mode #calendarMonthYear { color: #1f2937 !important; }
+
+body.light-mode .cal-weekdays div { color: #374151; }
+
+body.light-mode .cal-day-number { color: #1f2937; }
+
+body.light-mode .cal-grey  { color: #6b7280; }
+body.light-mode .cal-red   { color: #b91c1c; }
+body.light-mode .cal-green { color: #166534; }
+body.light-mode .cal-blue  { color: #3730a3; }
+
+/* b. Achievements PR cards — more breathing room */
+body.light-mode .pr-card {
+    padding: 22px 24px;
+    margin-bottom: 12px;
+}
+
+body.light-mode .pr-muscle-group { margin-bottom: 24px; }
+
+body.light-mode .records-container {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+body.light-mode .pr-set { color: #111827; }
+body.light-mode .pr-exercise-name { color: #111827; }
+body.light-mode .pr-estimated { color: #6b7280; }
+
+/* c. Statistics muscle group cards — more inner padding */
+body.light-mode .muscle-group-card {
+    padding: 22px 24px;
+    gap: 12px;
+}
+
+body.light-mode .muscle-group-card-name { color: #111827; font-size: 1.05em; }
+body.light-mode .exercise-change-name   { color: #374151; }
+body.light-mode .exercise-change-row    { border-bottom-color: rgba(0,0,0,0.06); }
+
+body.light-mode .vol-summary-card,
+body.light-mode .vol-muscle-card { padding: 22px 24px; }
+body.light-mode .vol-muscle-card  { color: #111827; }
+body.light-mode .vmc-name         { color: #111827; }
+body.light-mode .vmc-stat-val     { color: #111827; }
+body.light-mode .vmc-msg          { color: #6b7280; }
+body.light-mode .vmc-range        { color: #6b7280; }
+body.light-mode .vol-sum-value    { color: #111827; }
+
+/* d. Create workout modal — fix white text on light backgrounds */
+body.light-mode .layout-option h3 { color: #1f2937; }
+body.light-mode .layout-option p  { color: #4b5563; }
+
+body.light-mode .modal-header h2,
+body.light-mode .workout-detail-header h2,
+body.light-mode .exercise-detail-header h2 { color: #111827; }
+
+/* Past workout template section title */
+body.light-mode .workout-layout-modal h2 { color: #111827; }
+
+/* Start workout card headings in light mode */
+body.light-mode .start-workout-content h3 { color: #1e1b4b; }
+
+/* Create workout section headings */
+body.light-mode .create-workout-section h2 { color: #111827; }
+body.light-mode .add-exercise-form h3       { color: #111827; }
+body.light-mode .current-workout-display h3 { color: #111827; }
+
+/* Exercise set number labels */
+body.light-mode .exercise-set-number { color: #6d28d9; }
+body.light-mode .set-label           { color: #374151; }
+body.light-mode .set-unit            { color: #6b7280; }
+body.light-mode .bw-mode-label       { color: #6d28d9; }
+
+/* Current exercise item in light mode */
+body.light-mode .current-exercise-item-details h4 { color: #111827; }
+body.light-mode .current-exercise-item-muscle      { color: #6d28d9; }
+
+/* e. Workout history cards — more room, better text contrast */
+body.light-mode .workout-item {
+    padding: 18px 22px;
+    margin-bottom: 12px;
+}
+
+body.light-mode .workout-details h3  { color: #111827; }
+body.light-mode .workout-details p   { color: #6b7280; }
+
+/* History controls */
+body.light-mode .history-section h2 { color: #111827; }
+
+/* Section headings across all pages in light mode */
+body.light-mode h2 { color: #111827; }
+body.light-mode h3 { color: #111827; }
+body.light-mode label { color: #374151; }
