@@ -6899,3 +6899,17 @@ var addSetToExercise = function(exIdx) {
     };
     updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
 })();
+
+// Remove the "Past Workout" bar when the current workout is live
+(function() {
+    var prev = renderActiveWorkout;
+    renderActiveWorkout = function() {
+        prev();
+        var isLive = (typeof workoutIsLive === 'undefined') || workoutIsLive;
+        if (isLive) {
+            var bar = document.getElementById('pastWorkoutInfoBar');
+            if (bar) bar.remove();
+        }
+    };
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
