@@ -6913,3 +6913,146 @@ var addSetToExercise = function(exIdx) {
     };
     updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
 })();
+
+// ============================================================
+// WORKOUT COMPLETE SUMMARY MODAL
+// Shows after saving: exercises, sets, rest times, PRs, duration
+// ============================================================
+
+function showWorkoutSummary(workout, prs) {
+    var existing = document.getElementById('workoutSummaryModal');
+    if (existing) existing.remove();
+
+    // ── Calculations ─────────────────────────────────────────
+    var totalSets   = 0;
+    var totalVolume = 0;
+    workout.exercises.forEach(function(ex) {
+        totalSets += ex.sets.length;
+        ex.sets.forEach(function(s) {
+            if ((s.mode || 'weighted') === 'weighted' && s.weight && s.reps) {
+                totalVolume += s.weight * s.reps;
+            }
+        });
+    });
+
+    // Duration
+    var durText = '';
+    if (workout.workoutDuration) {
+        var h = Math.floor(workout.workoutDuration / 3600);
+        var m = Math.floor((workout.workoutDuration % 3600) / 60);
+        durText = h > 0 ? h + ' hr ' + m + ' min' : m + ' min';
+    }
+
+    // Date display
+    var dateDisp = '';
+    try {
+        var d = new Date(workout.date + 'T12:00:00');
+        dateDisp = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch(e) { dateDisp = workout.date; }
+
+    // PR lookup for fast access
+    var prExercises = {};
+    (prs || []).forEach(function(pr) { prExercises[pr.exercise] = pr; });
+
+    // ── Exercise cards ────────────────────────────────────────
+    var exHtml = workout.exercises.map(function(ex) {
+        var setRows = ex.sets.map(function(s, idx) {
+            var sm = s.mode || 'weighted';
+            var val = '';
+            if (sm === 'timed') {
+                var d2 = s.duration || 0;
+                val = Math.floor(d2/60) + 'm ' + (d2%60) + 's';
+            } else if (sm === 'bodyweight') {
+                val = 'BW × ' + (s.reps || 0) + ' reps';
+            } else {
+                val = (s.weight || 0) + ' lbs × ' + (s.reps || 0) + ' reps';
+            }
+
+            var restText = s.restTaken
+                ? '<span class="sum-rest">Rest: ' + formatRestTime(s.restTaken) + '</span>'
+                : '';
+
+            return '<div class="sum-set-row">' +
+                '<span class="sum-set-label">Set ' + (idx+1) + '</span>' +
+                '<span class="sum-set-val">' + val + '</span>' +
+                restText +
+            '</div>';
+        }).join('');
+
+        // PR badge for this exercise
+        var prBadge = '';
+        if (prExercises[ex.exercise]) {
+            var pr = prExercises[ex.exercise];
+            var prVal = (pr.mode === 'timed')       ? formatRestTime(pr.est1RM || 0)
+                      : (pr.mode === 'bodyweight')   ? pr.reps + ' reps'
+                      : pr.weight + ' lbs × ' + pr.reps + ' reps';
+            prBadge = '<div class="sum-pr-badge">🏆 New PR: ' + prVal + '</div>';
+        }
+
+        return '<div class="sum-exercise-card">' +
+            '<div class="sum-ex-header">' +
+                '<span class="sum-ex-name">' + ex.exercise + '</span>' +
+                '<span class="sum-ex-muscle">' + (ex.muscleGroup || '') + '</span>' +
+            '</div>' +
+            setRows +
+            prBadge +
+        '</div>';
+    }).join('');
+
+    // ── Stats row ─────────────────────────────────────────────
+    var statsHtml =
+        '<div class="sum-stats">' +
+            '<div class="sum-stat"><div class="sum-stat-val">' + workout.exercises.length + '</div><div class="sum-stat-label">Exercises</div></div>' +
+            '<div class="sum-stat"><div class="sum-stat-val">' + totalSets + '</div><div class="sum-stat-label">Sets</div></div>' +
+            (totalVolume > 0 ? '<div class="sum-stat"><div class="sum-stat-val">' + totalVolume.toLocaleString() + '</div><div class="sum-stat-label">lbs Volume</div></div>' : '') +
+            (durText ? '<div class="sum-stat"><div class="sum-stat-val">' + durText + '</div><div class="sum-stat-label">Duration</div></div>' : '') +
+            ((prs && prs.length) ? '<div class="sum-stat sum-stat-pr"><div class="sum-stat-val">' + prs.length + '</div><div class="sum-stat-label">New PRs 🏆</div></div>' : '') +
+        '</div>';
+
+    // ── Build modal ───────────────────────────────────────────
+    var modal = document.createElement('div');
+    modal.id        = 'workoutSummaryModal';
+    modal.className = 'workout-summary-modal';
+
+    modal.innerHTML =
+        '<div class="sum-backdrop" onclick="closeWorkoutSummary()"></div>' +
+        '<div class="sum-content">' +
+            '<div class="sum-header">' +
+                '<div class="sum-celebration">🎉</div>' +
+                '<h2 class="sum-title">' + workout.name + '</h2>' +
+                '<p class="sum-date">' + dateDisp + '</p>' +
+            '</div>' +
+            statsHtml +
+            '<div class="sum-exercise-list">' + exHtml + '</div>' +
+            '<button class="sum-close-btn" onclick="closeWorkoutSummary()">Done</button>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            modal.classList.add('sum-visible');
+        });
+    });
+}
+
+function closeWorkoutSummary() {
+    var modal = document.getElementById('workoutSummaryModal');
+    if (!modal) return;
+    modal.classList.remove('sum-visible');
+    setTimeout(function() { if (modal.parentNode) modal.remove(); }, 350);
+}
+
+// Wrap saveCurrentWorkout to capture data BEFORE the form resets
+(function() {
+    var prevSave = saveCurrentWorkout;
+    saveCurrentWorkout = function() {
+        // Snapshot the workout and check PRs before save clears everything
+        var snapshot = JSON.parse(JSON.stringify(currentWorkout));
+        var prs = (typeof checkForNewPRs === 'function') ? checkForNewPRs(currentWorkout) : [];
+
+        prevSave(); // runs the original save + resets form
+
+        // Show summary after save
+        showWorkoutSummary(snapshot, prs);
+    };
+})();
