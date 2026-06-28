@@ -2694,12 +2694,12 @@ function renderFullCalendar() {
             cell.appendChild(lbl);
         });
 
-        if (hasPlanned && !hasCompleted && isFuture) {
+        if (hasPlanned && !hasCompleted) {
             cell.style.cursor = 'pointer';
-            cell.addEventListener('click', () => startFromPlan(plans[0].id));
+            (function(p){ cell.addEventListener('click', function(){ showPlanOptions(p); }); })(plans[0]);
         } else if (isFuture || isToday) {
             cell.style.cursor = 'pointer';
-            cell.addEventListener('click', () => openPlanModal(cellDate));
+            (function(d){ cell.addEventListener('click', function(){ openPlanModal(d); }); })(cellDate);
         }
 
         cell.addEventListener('mouseenter', () => showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell));
@@ -4552,3 +4552,53 @@ renderWorkoutHistory = function() {
         });
     }
 };
+
+// ========================================
+// PLAN OPTIONS MODAL (Start or Delete)
+// ========================================
+
+function showPlanOptions(plan) {
+    var existing = document.getElementById('planOptionsModal');
+    if (existing) existing.remove();
+
+    var timeStr = plan.time ? '<div class="po-time">&#9201; ' + formatTime(plan.time) + '</div>' : '';
+    var exList = (plan.exercises && plan.exercises.length > 0)
+        ? '<div class="po-exercises">' + plan.exercises.slice(0,4).map(function(e){ return '• ' + e; }).join('<br>') +
+          (plan.exercises.length > 4 ? '<br>• +' + (plan.exercises.length - 4) + ' more' : '') + '</div>'
+        : '';
+
+    var modal = document.createElement('div');
+    modal.id = 'planOptionsModal';
+    modal.className = 'plan-options-modal';
+    modal.innerHTML =
+        '<div class="po-backdrop" onclick="closePlanOptions()"></div>' +
+        '<div class="po-content">' +
+            '<div class="po-header">' +
+                '<div class="po-name">' + plan.name + '</div>' +
+                timeStr + exList +
+            '</div>' +
+            '<div class="po-actions">' +
+                '<button class="btn btn-primary" onclick="closePlanOptions(); startFromPlan(\'' + plan.id + '\')">&#9654; Start Workout</button>' +
+                '<button class="btn btn-danger" onclick="closePlanOptions(); deletePlannedWorkout(\'' + plan.id + '\')">&#128465; Delete Plan</button>' +
+                '<button class="btn btn-secondary" onclick="closePlanOptions()">Cancel</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(function() { requestAnimationFrame(function() { modal.classList.add('po-visible'); }); });
+}
+
+function closePlanOptions() {
+    var modal = document.getElementById('planOptionsModal');
+    if (modal) modal.remove();
+}
+
+function deletePlannedWorkout(planId) {
+    plannedWorkouts = plannedWorkouts.filter(function(p) { return p.id !== planId; });
+    savePlannedWorkouts();
+    if (currentPage === 'calendar') {
+        renderFullCalendar();
+    } else {
+        renderWorkoutCalendar();
+    }
+}
