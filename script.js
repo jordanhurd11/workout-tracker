@@ -7436,3 +7436,32 @@ function openWorkoutDetail(workoutId) {
     if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
     showWorkoutSummary(workout, []);
 }
+
+// Fix: calculate duration BEFORE snapshot so it appears in the summary
+(function() {
+    var prevSave = saveCurrentWorkout;
+    saveCurrentWorkout = function() {
+        // Stop rest timer and save to set if running
+        if (restIsRunning && restCountSeconds > 0 && restForExIdx >= 0 && restForSetIdx >= 0) {
+            var ex = currentWorkout.exercises[restForExIdx];
+            if (ex && ex.sets[restForSetIdx]) ex.sets[restForSetIdx].restTaken = restCountSeconds;
+        }
+        clearInterval(restCountInterval);
+        restIsRunning = false; restCountSeconds = 0; restForExIdx = -1; restForSetIdx = -1;
+
+        // Calculate duration NOW so it is in the snapshot
+        if (workoutIsLive && workoutLiveStartTimestamp) {
+            var endTs = Date.now();
+            currentWorkout.workoutEndTime  = new Date(endTs).toISOString();
+            currentWorkout.workoutDuration = Math.round((endTs - workoutLiveStartTimestamp) / 1000);
+        }
+
+        // Snapshot after duration is set
+        var snapshot = JSON.parse(JSON.stringify(currentWorkout));
+        snapshot._isCurrent = true;
+        var prs = (typeof checkForNewPRs === 'function') ? checkForNewPRs(currentWorkout) : [];
+
+        prevSave();
+        showWorkoutSummary(snapshot, prs);
+    };
+})();
