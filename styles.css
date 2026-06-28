@@ -5122,3 +5122,59 @@ body.light-mode .sum-ex-muscle        { background: rgba(108,92,210,0.1); color:
 }
 .sum-rest-row:last-child { border-bottom: none; }
 body.light-mode .sum-rest-row { border-bottom-color: rgba(0,0,0,0.05); }
+
+/* ── Mobile: cleaner set row layout ── */
+@media (max-width: 600px) {
+    /* Wrap set row into two lines:
+       Line 1 → label | inputs | complete | remove
+       Line 2 → quick adjust buttons full width       */
+    .active-set-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 8px;
+    }
+
+    .set-num-label {
+        flex: 0 0 auto;
+        width: 38px;
+        font-size: 0.7em;
+    }
+
+    .set-row-inputs {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: nowrap;   /* keep weight × reps on one line */
+        min-width: 0;
+    }
+
+    .fast-weight,
+    .fast-reps { width: 58px !important; font-size: 1em !important; }
+
+    /* Push quick-adjust to its own second line */
+    .quick-adj {
+        flex-basis: 100%;
+        display: flex;
+        gap: 4px;
+        padding-left: 46px; /* align under inputs */
+    }
+
+    .quick-adj button {
+        flex: 1;
+        padding: 7px 4px;
+        font-size: 0.75em;
+    }
+
+    /* Complete + remove stay on line 1 next to inputs */
+    .complete-btn  { width: 38px; height: 38px; font-size: 1em; flex-shrink: 0; }
+    .remove-set-x  { width: 26px; height: 26px; flex-shrink: 0; }
+
+    /* Add-set button full width on mobile */
+    .add-set-btn-fast { font-size: 0.9em; padding: 12px; }
+
+    /* Stat time value can be smaller on narrow screens */
+    .sum-stat-time { font-size: 0.85em !important; }
+}
