@@ -3337,25 +3337,48 @@ function countDistinctWeeksWithWorkouts() {
 function getAdaptiveAverageData() {
     var distinctWeeks = countDistinctWeeksWithWorkouts();
     var divisor = Math.min(Math.max(distinctWeeks, 1), 4);
-    var weekVols = [0, -1, -2, -3].map(getWeekVolume);
 
     var avgLabel = distinctWeeks >= 4
         ? '4-Week Rolling Avg'
         : ('Avg Since Tracking (' + divisor + (divisor === 1 ? ' Week)' : ' Weeks)'));
 
+    // Current week is always shown for "Total Weekly Sets"
+    var thisWeek = getWeekVolume(0);
+
+    // For the average: collect the most recent weeks that actually HAVE workouts
+    // (not just the most recent calendar weeks, which may be empty)
+    var avgWeeks = [];
+    if (distinctWeeks >= 4) {
+        // Rolling 4-week average — use the 4 most recent calendar weeks (includes empty ones)
+        avgWeeks = [0, -1, -2, -3].map(getWeekVolume);
+    } else {
+        // Adaptive — find the most recent 'divisor' weeks with workout data
+        for (var offset = 0; avgWeeks.length < divisor && offset >= -52; offset--) {
+            var v = getWeekVolume(offset);
+            var weekTotal = VOLUME_MUSCLES.reduce(function(s, m){ return s + (v[m] || 0); }, 0);
+            if (weekTotal > 0 || offset === 0) {   // always include current week
+                avgWeeks.push(v);
+            }
+        }
+        // Pad to divisor with empty weeks in case not enough history found
+        while (avgWeeks.length < divisor) avgWeeks.push({});
+    }
+
     var avg = {};
     VOLUME_MUSCLES.forEach(function(m) {
         var total = 0;
-        for (var i = 0; i < divisor; i++) total += (weekVols[i][m] || 0);
+        for (var i = 0; i < divisor; i++) total += (avgWeeks[i][m] || 0);
         avg[m] = total / divisor;
     });
 
-    var weekTotals = weekVols.map(function(v) {
-        return VOLUME_MUSCLES.reduce(function(s, m){ return s + v[m]; }, 0);
-    });
     var avgTotal = 0;
-    for (var i = 0; i < divisor; i++) avgTotal += weekTotals[i];
+    for (var i = 0; i < divisor; i++) {
+        avgTotal += VOLUME_MUSCLES.reduce(function(s, m){ return s + (avgWeeks[i][m] || 0); }, 0);
+    }
     avgTotal = avgTotal / divisor;
+
+    // weekVols[0] is always the current week (for individual card rendering)
+    var weekVols = [thisWeek].concat(avgWeeks.slice(1));
 
     return { avg: avg, avgTotal: avgTotal, divisor: divisor, label: avgLabel, weekVols: weekVols };
 }
