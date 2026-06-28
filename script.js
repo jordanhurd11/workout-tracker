@@ -2273,14 +2273,18 @@ function renderWorkoutCalendar() {
             cell.appendChild(lbl);
         });
 
-        plans.forEach(p => {
+        plans.forEach(function(p) {
             const lbl = document.createElement('div');
             lbl.className = 'cal-event-label cal-label-blue';
             lbl.textContent = p.name + (p.time ? ' ' + formatTime(p.time) : '');
+            lbl.style.cursor = 'pointer';
+            lbl.title = 'Click to start or delete';
+            // Always clickable directly — works even when a completed workout is on the same day
+            lbl.addEventListener('click', (function(plan){ return function(e){ e.stopPropagation(); showPlanOptions(plan); }; })(p));
             cell.appendChild(lbl);
         });
 
-        if (hasPlanned && !hasCompleted && isFuture) {
+        if (hasPlanned && !hasCompleted) {
             cell.style.cursor = 'pointer';
             cell.addEventListener('click', () => startFromPlan(plans[0].id));
         } else if (isFuture || isToday) {
@@ -2687,10 +2691,13 @@ function renderFullCalendar() {
             cell.appendChild(lbl);
         });
 
-        plans.forEach(p => {
+        plans.forEach(function(p) {
             const lbl = document.createElement('div');
             lbl.className = 'cal-event-label cal-label-blue';
             lbl.textContent = p.name + (p.time ? ' ' + formatTime(p.time) : '');
+            lbl.style.cursor = 'pointer';
+            lbl.title = 'Click to start or delete';
+            lbl.addEventListener('click', (function(plan){ return function(e){ e.stopPropagation(); showPlanOptions(plan); }; })(p));
             cell.appendChild(lbl);
         });
 
