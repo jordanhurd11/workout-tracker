@@ -4934,3 +4934,13 @@ body.light-mode .inline-ex-search::placeholder { color: #9ca3af; }
     padding-bottom: 12px;
 }
 body.light-mode .inline-add-top { border-bottom-color: #d1d5db; }
+
+/* Inline search below the last exercise's + Set button */
+.inline-add-after-set {
+    border-top: 1px dashed var(--border-light);
+    border-bottom: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    padding-bottom: 0;
+}
+body.light-mode .inline-add-after-set { border-top-color: #d1d5db; }

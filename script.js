@@ -6263,3 +6263,66 @@ function wireInlineSearch() {
         setTimeout(function() { dropdown.classList.add('hidden'); }, 200);
     });
 }
+
+// ============================================================
+// INLINE SEARCH REPOSITIONING
+// - No exercises yet: search at the very top (find first exercise)
+// - Exercises exist: search appears below the "+ Set" button of
+//   the last exercise card only
+// Removes all previous search placements (top + bottom) before
+// adding the correct one.
+// ============================================================
+
+(function() {
+    var prevRender = renderActiveWorkout;
+
+    renderActiveWorkout = function() {
+        prevRender(); // run existing render (exercises + old search placements)
+
+        var container = document.getElementById('currentExercisesList');
+        if (!container) return;
+
+        // Remove every existing inline-add-exercise section (top AND bottom)
+        container.querySelectorAll('.inline-add-exercise').forEach(function(el) {
+            el.remove();
+        });
+
+        var hasExercises = currentWorkout.exercises && currentWorkout.exercises.length > 0;
+        var section = buildInlineSearchSection();
+
+        if (!hasExercises) {
+            // No exercises yet — search goes at the very top
+            section.classList.add('inline-add-top');
+            container.insertBefore(section, container.firstChild);
+        } else {
+            // Exercises exist — search goes inside the LAST exercise card,
+            // directly below its "+ Set" button
+            var cards = container.querySelectorAll('.active-exercise-card');
+            if (cards.length > 0) {
+                var lastCard = cards[cards.length - 1];
+                section.classList.add('inline-add-after-set');
+                lastCard.appendChild(section);
+            }
+        }
+
+        // Wire events on the freshly created element
+        wireInlineSearch();
+    };
+
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
+
+function buildInlineSearchSection() {
+    var div = document.createElement('div');
+    div.className = 'inline-add-exercise';
+    div.innerHTML =
+        '<div class="exercise-search-wrapper">' +
+            '<input type="text" id="inlineExerciseSearch"' +
+                ' class="exercise-search-input inline-ex-search"' +
+                ' placeholder="+ Add exercise..."' +
+                ' autocomplete="off">' +
+            '<div id="inlineExerciseDropdown"' +
+                ' class="exercise-dropdown hidden"></div>' +
+        '</div>';
+    return div;
+}
