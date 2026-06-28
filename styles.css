@@ -5210,3 +5210,44 @@ body.light-mode .sum-rest-row { border-bottom-color: rgba(0,0,0,0.05); }
         text-align: center;
     }
 }
+
+/* ── Mobile fix: quick-adj is inside set-row-inputs, use flex wrap ── */
+@media (max-width: 600px) {
+    .set-row-inputs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center;
+        gap: 5px;
+        flex: 1;
+    }
+
+    /* Force quick-adjust to its own full-width line */
+    .set-row-inputs .quick-adj {
+        flex-basis: 100% !important;
+        display: flex !important;
+        gap: 5px;
+        margin-top: 2px;
+    }
+
+    .set-row-inputs .quick-adj button {
+        flex: 1 !important;
+        padding: 8px 4px !important;
+        font-size: 0.8em !important;
+    }
+
+    /* Keep weight and reps inputs on the same line */
+    .set-row-inputs .fast-weight,
+    .set-row-inputs .fast-reps {
+        width: 60px !important;
+        flex-shrink: 0;
+    }
+
+    /* Reset grid on active-set-row back to simple flex */
+    .active-set-row {
+        display: flex !important;
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 10px 8px;
+    }
+}
