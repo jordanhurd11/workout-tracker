@@ -2082,33 +2082,38 @@ function renderPastWorkoutsInModal() {
     const pastWorkoutsList = document.getElementById('pastWorkoutsList');
     pastWorkoutsList.innerHTML = '';
 
-    if (workouts.length === 0) {
-        pastWorkoutsList.innerHTML = '<p class="empty-message">No past workouts available yet</p>';
+    // Pull from saved Templates (not workout history)
+    loadTemplates();
+
+    if (workoutTemplates.length === 0) {
+        pastWorkoutsList.innerHTML =
+            '<p class="empty-message" style="font-size:0.85em;padding:12px 0;">' +
+            'No saved templates yet.<br>Create one on the Templates page.' +
+            '</p>';
         return;
     }
 
-    // Get unique workout names (templates)
-    const workoutNames = [...new Set(workouts.map(w => w.name))];
-    
-    workoutNames.forEach(name => {
+    // Sort most recently updated first
+    const sorted = workoutTemplates.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    sorted.forEach(template => {
         const item = document.createElement('div');
         item.className = 'past-workout-item';
-        
-        // Use most recent workout with this name (not first)
-        const lastWorkout = workouts
-            .filter(w => w.name === name)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-        const exerciseNames = lastWorkout.exercises.map(e => e.exercise).slice(0, 3).join(', ');
-        const moreExercises = lastWorkout.exercises.length > 3 ? ` +${lastWorkout.exercises.length - 3} more` : '';
-        
+
+        const exerciseNames = template.exercises.map(e => e.exercise).slice(0, 3).join(', ');
+        const more = template.exercises.length > 3 ? ` +${template.exercises.length - 3} more` : '';
+
         item.innerHTML = `
             <div>
-                <div class="past-workout-item-name">${name}</div>
-                <div class="past-workout-item-exercises">${exerciseNames}${moreExercises}</div>
+                <div class="past-workout-item-name">${template.templateName}</div>
+                <div class="past-workout-item-exercises">${exerciseNames}${more}</div>
             </div>
         `;
-        
-        item.addEventListener('click', () => useWorkoutTemplate(name));
+
+        item.addEventListener('click', () => {
+            closeWorkoutLayoutModal();
+            loadFromTemplateObj(template);
+        });
         pastWorkoutsList.appendChild(item);
     });
 }
