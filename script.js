@@ -5001,3 +5001,233 @@ saveCurrentWorkout = function() {
     });
     _origSaveCurrentWorkout();
 };
+
+// ============================================================
+// REST TIMER UPDATE: toggle, custom time, save rest per set
+// Overrides the initial fast_log.js functions at runtime
+// (var assignment beats hoisted function declarations)
+// ============================================================
+
+// Restore state — default ON, persisted in localStorage
+var restTimerEnabled      = localStorage.getItem('restTimerEnabled') !== 'false';
+var lastSetCompletedTime  = null;  // tracks when the last set was completed
+
+// ── Build the full timer bar HTML ─────────────────────────────
+function getRestTimerBarHTML() {
+    var mins = Math.floor(restTimerDefault / 60);
+    var secs = restTimerDefault % 60;
+    return (
+        // Top row: toggle + live display + start/reset
+        '<div class="rest-top-row">' +
+            '<button class="rest-toggle ' + (restTimerEnabled ? 'rest-toggle-on' : 'rest-toggle-off') +
+                '" onclick="toggleRestTimer()" title="Enable or disable the rest timer">' +
+                (restTimerEnabled ? '⏸ Timer ON' : '▷ Timer OFF') +
+            '</button>' +
+            '<span id="restTimerDisplay">' + (restTimerEnabled ? '⏱ Rest Timer' : 'Rest timer disabled') + '</span>' +
+            '<div class="rest-ctrl-btns">' +
+                '<button class="rest-btn" onclick="startRestTimer()"' + (!restTimerEnabled ? ' disabled' : '') + '>Start</button>' +
+                '<button class="rest-btn" onclick="resetRestTimer()">Reset</button>' +
+            '</div>' +
+        '</div>' +
+        // Bottom row: custom time input + presets (hidden when timer is OFF)
+        '<div class="rest-bottom-row' + (!restTimerEnabled ? ' rest-row-hidden' : '') + '">' +
+            '<span class="rest-cfg-label">Set time:</span>' +
+            '<input type="number" id="customRestMin" class="rest-time-input" value="' + mins + '" min="0" max="99" placeholder="0"> <span class="rest-unit">min</span>' +
+            '<input type="number" id="customRestSec" class="rest-time-input" value="' + secs + '" min="0" max="59" placeholder="0"> <span class="rest-unit">sec</span>' +
+            '<button class="rest-btn" onclick="setCustomRestTime()">Set</button>' +
+            '<div class="rest-presets">' +
+                '<button class="rest-preset" onclick="setQuickRestTime(60)">1m</button>' +
+                '<button class="rest-preset" onclick="setQuickRestTime(90)">90s</button>' +
+                '<button class="rest-preset" onclick="setQuickRestTime(120)">2m</button>' +
+                '<button class="rest-preset" onclick="setQuickRestTime(180)">3m</button>' +
+            '</div>' +
+        '</div>'
+    );
+}
+
+// Rebuild just the bar content without touching other UI
+function refreshRestTimerBar() {
+    var bar = document.getElementById('restTimerBar');
+    if (bar) {
+        bar.innerHTML = getRestTimerBarHTML();
+        updateRestTimerDisplay();
+    }
+}
+
+// Toggle ON/OFF and persist to localStorage
+function toggleRestTimer() {
+    restTimerEnabled = !restTimerEnabled;
+    localStorage.setItem('restTimerEnabled', String(restTimerEnabled));
+    if (!restTimerEnabled) {
+        stopRestTimer();
+        restTimerSeconds = 0;
+    }
+    refreshRestTimerBar();
+}
+
+// Read the custom min/sec inputs and update restTimerDefault
+function setCustomRestTime() {
+    var mins = parseInt(document.getElementById('customRestMin') ? document.getElementById('customRestMin').value : 0) || 0;
+    var secs = parseInt(document.getElementById('customRestSec') ? document.getElementById('customRestSec').value : 0) || 0;
+    var total = mins * 60 + secs;
+    if (total > 0) restTimerDefault = total;
+}
+
+// Quick preset — also updates the min/sec inputs so they stay in sync
+function setQuickRestTime(seconds) {
+    restTimerDefault = seconds;
+    var minEl = document.getElementById('customRestMin');
+    var secEl = document.getElementById('customRestSec');
+    if (minEl) minEl.value = Math.floor(seconds / 60);
+    if (secEl) secEl.value = seconds % 60;
+}
+
+// ── Override completeSet to track rest time and check toggle ──
+var completeSet = function(exIdx, setIdx) {
+    var sets = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets;
+    if (!sets || !sets[setIdx]) return;
+
+    sets[setIdx].completed = !sets[setIdx].completed;
+
+    if (sets[setIdx].completed) {
+        var now = Date.now();
+
+        // Record how long since the last completed set (rest taken)
+        if (lastSetCompletedTime !== null) {
+            var restTaken = Math.round((now - lastSetCompletedTime) / 1000);
+            sets[setIdx].restTaken = restTaken;  // persisted with the workout
+        }
+        lastSetCompletedTime = now;
+
+        // Only start timer if it's enabled
+        if (restTimerEnabled) {
+            var bar = document.getElementById('restTimerBar');
+            if (bar) bar.classList.remove('rest-timer-done');
+            startRestTimer();
+        }
+    } else {
+        // Un-completing: clear rest data and don't affect timer
+        delete sets[setIdx].restTaken;
+    }
+
+    renderActiveWorkout();
+};
+
+// ── Override renderActiveWorkout to use the new timer bar ─────
+var renderActiveWorkout = function() {
+    var container = document.getElementById('currentExercisesList');
+    var display   = document.getElementById('currentWorkoutDisplay');
+    if (!container || !display) return;
+
+    display.classList.remove('hidden');
+
+    // Create the timer bar once; refresh its contents on setting changes
+    var timerBar = document.getElementById('restTimerBar');
+    if (!timerBar) {
+        timerBar = document.createElement('div');
+        timerBar.id        = 'restTimerBar';
+        timerBar.className = 'rest-timer-bar';
+        timerBar.innerHTML = getRestTimerBarHTML();
+        var h3 = display.querySelector('h3');
+        if (h3) h3.after(timerBar);
+        else container.before(timerBar);
+        updateRestTimerDisplay();
+    }
+
+    container.innerHTML = '';
+
+    if (currentWorkout.exercises.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:24px 0;">No exercises yet — add one below.</p>';
+        return;
+    }
+
+    currentWorkout.exercises.forEach(function(exercise, exIdx) {
+        var card = document.createElement('div');
+        card.className = 'active-exercise-card';
+
+        var exType = getExerciseType(exercise.exercise);
+        var mode   = exercise.sets.length > 0
+            ? (exercise.sets[0].mode || 'weighted')
+            : (exType === 'timed' ? 'timed' : exType === 'bodyweight' ? 'bodyweight' : 'weighted');
+
+        // "Last time" row
+        var lastEx   = getLastWorkoutForExercise(exercise.exercise);
+        var lastHtml = '';
+        if (lastEx && lastEx.sets && lastEx.sets.length > 0) {
+            lastHtml = '<div class="last-time-row">Last: ' +
+                lastEx.sets.map(formatSetShort).join(' · ') + '</div>';
+        }
+
+        // Set rows
+        var setRows = exercise.sets.map(function(set, setIdx) {
+            var sm       = set.mode || 'weighted';
+            var done     = set.completed ? ' set-row-done' : '';
+            var doneIcon = set.completed ? '✓' : '○';
+            var doneCls  = set.completed ? ' complete-done' : '';
+
+            // Show saved rest time for completed sets (after the first)
+            var restInfo = (set.completed && set.restTaken)
+                ? '<span class="set-rest-info" title="Rest taken before this set">⏱ ' + formatRestTime(set.restTaken) + '</span>'
+                : '';
+
+            var inputsHtml = '';
+            if (sm === 'timed') {
+                var d = set.duration || 0;
+                var mm = Math.floor(d/60), ss = d%60;
+                inputsHtml =
+                    '<input type="number" class="fast-input" value="' + mm + '" min="0"' +
+                    ' onchange="(function(){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].duration=(parseInt(this.value)||0)*60+((ex.sets[' + setIdx + '].duration||0)%60);}).call(this)"> m ' +
+                    '<input type="number" class="fast-input" value="' + ss + '" min="0" max="59"' +
+                    ' onchange="(function(){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].duration=Math.floor((ex.sets[' + setIdx + '].duration||0)/60)*60+(parseInt(this.value)||0);}).call(this)"> s';
+            } else if (sm === 'bodyweight') {
+                inputsHtml =
+                    '<span class="bw-pill">BW</span>' +
+                    '<input type="number" class="fast-input" value="' + (set.reps || '') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    ' <span class="set-unit">reps</span>' +
+                    '<div class="quick-adj">' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1</button>' +
+                    '</div>';
+            } else {
+                inputsHtml =
+                    '<input type="number" class="fast-input fast-weight" value="' + (set.weight || '') + '" min="0" step="2.5" placeholder="lbs"' +
+                    ' onchange="updateSetWeight(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    ' <span class="set-unit">×</span> ' +
+                    '<input type="number" class="fast-input fast-reps" value="' + (set.reps || '') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<div class="quick-adj">' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',-5)">-5</button>' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',5)">+5</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1r</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1r</button>' +
+                    '</div>';
+            }
+
+            return '<div class="active-set-row' + done + '">' +
+                '<span class="set-num-label">Set ' + (setIdx+1) + '</span>' +
+                '<div class="set-row-inputs">' + inputsHtml + '</div>' +
+                restInfo +
+                '<button class="complete-btn' + doneCls + '" onclick="completeSet(' + exIdx + ',' + setIdx + ')" title="Mark set complete">' + doneIcon + '</button>' +
+                '<button class="remove-set-x" onclick="removeSetFromExercise(' + exIdx + ',' + setIdx + ')" title="Remove set">✕</button>' +
+            '</div>';
+        }).join('');
+
+        card.innerHTML =
+            '<div class="active-ex-header">' +
+                '<div class="active-ex-name">' + exercise.exercise + '</div>' +
+                '<span class="active-ex-muscle">' + (exercise.muscleGroup || '') + '</span>' +
+                '<button class="remove-ex-x" onclick="removeExerciseCard(' + exIdx + ')" title="Remove exercise">✕</button>' +
+            '</div>' +
+            lastHtml +
+            '<div class="active-sets-list">' + setRows + '</div>' +
+            '<button class="add-set-btn-fast" onclick="addSetToExercise(' + exIdx + ')">+ Set</button>';
+
+        container.appendChild(card);
+    });
+};
+
+// Keep updateCurrentWorkoutDisplay pointing at the new renderer
+var updateCurrentWorkoutDisplay = function() {
+    renderActiveWorkout();
+};
