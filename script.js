@@ -2082,10 +2082,14 @@ function renderPastWorkoutsInModal() {
     const pastWorkoutsList = document.getElementById('pastWorkoutsList');
     pastWorkoutsList.innerHTML = '';
 
-    // Pull from saved Templates (not workout history)
-    loadTemplates();
+    // Read directly from localStorage — avoids any variable scope/order issues
+    let templates = [];
+    try {
+        const stored = localStorage.getItem('workoutTemplatesData');
+        if (stored) templates = JSON.parse(stored);
+    } catch(e) { templates = []; }
 
-    if (workoutTemplates.length === 0) {
+    if (templates.length === 0) {
         pastWorkoutsList.innerHTML =
             '<p class="empty-message" style="font-size:0.85em;padding:12px 0;">' +
             'No saved templates yet.<br>Create one on the Templates page.' +
@@ -2094,21 +2098,20 @@ function renderPastWorkoutsInModal() {
     }
 
     // Sort most recently updated first
-    const sorted = workoutTemplates.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    templates.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 
-    sorted.forEach(template => {
+    templates.forEach(template => {
         const item = document.createElement('div');
         item.className = 'past-workout-item';
 
-        const exerciseNames = template.exercises.map(e => e.exercise).slice(0, 3).join(', ');
-        const more = template.exercises.length > 3 ? ` +${template.exercises.length - 3} more` : '';
+        const exerciseNames = (template.exercises || []).map(e => e.exercise).slice(0, 3).join(', ');
+        const more = (template.exercises || []).length > 3 ? ` +${(template.exercises).length - 3} more` : '';
 
-        item.innerHTML = `
-            <div>
-                <div class="past-workout-item-name">${template.templateName}</div>
-                <div class="past-workout-item-exercises">${exerciseNames}${more}</div>
-            </div>
-        `;
+        item.innerHTML =
+            '<div>' +
+            '<div class="past-workout-item-name">' + (template.templateName || 'Unnamed') + '</div>' +
+            '<div class="past-workout-item-exercises">' + (exerciseNames || 'No exercises') + more + '</div>' +
+            '</div>';
 
         item.addEventListener('click', () => {
             closeWorkoutLayoutModal();
