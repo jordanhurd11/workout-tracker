@@ -4923,3 +4923,14 @@ body.light-mode .start-rest-btn:hover        { color: #15803d; border-color: #16
 
 body.light-mode .inline-add-exercise { border-top-color: #d1d5db; }
 body.light-mode .inline-ex-search::placeholder { color: #9ca3af; }
+
+/* Inline search at the top of the exercise list */
+.inline-add-top {
+    border-top: none;
+    border-bottom: 1px dashed var(--border-light);
+    margin-top: 0;
+    margin-bottom: 14px;
+    padding-top: 0;
+    padding-bottom: 12px;
+}
+body.light-mode .inline-add-top { border-bottom-color: #d1d5db; }

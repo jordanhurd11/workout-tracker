@@ -6182,3 +6182,84 @@ var addExerciseInline = function(exerciseName) {
         if (cards.length > 0) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 60);
 };
+
+// Move inline exercise search to the TOP of the exercise list
+// and re-wire it every render (element is recreated each time).
+(function() {
+    var prevRAW = renderActiveWorkout;
+
+    renderActiveWorkout = function() {
+        prevRAW();
+
+        var container = document.getElementById('currentExercisesList');
+        if (!container) return;
+
+        // Build the search section fresh each render
+        var section = document.createElement('div');
+        section.className = 'inline-add-exercise inline-add-top';
+        section.innerHTML =
+            '<div class="exercise-search-wrapper">' +
+                '<input type="text" id="inlineExerciseSearch"' +
+                    ' class="exercise-search-input inline-ex-search"' +
+                    ' placeholder="+ Search and add exercise..."' +
+                    ' autocomplete="off">' +
+                '<div id="inlineExerciseDropdown" class="exercise-dropdown hidden"></div>' +
+            '</div>';
+
+        // Insert at the TOP so it is always visible
+        container.insertBefore(section, container.firstChild);
+
+        // Wire events — always fresh because element is new each render
+        wireInlineSearch();
+    };
+
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
+
+function wireInlineSearch() {
+    var search   = document.getElementById('inlineExerciseSearch');
+    var dropdown = document.getElementById('inlineExerciseDropdown');
+    if (!search || !dropdown) return;
+
+    // Populate groups
+    dropdown.innerHTML = '';
+    Object.entries(EXERCISES_BY_MUSCLE).forEach(function(pair) {
+        var muscle = pair[0], list = pair[1];
+        var grp = document.createElement('div');
+        grp.className = 'exercise-dropdown-group';
+        grp.textContent = muscle;
+        dropdown.appendChild(grp);
+        list.forEach(function(exName) {
+            var item = document.createElement('div');
+            item.className = 'exercise-dropdown-item';
+            item.textContent = exName;
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                addExerciseInline(exName);
+            });
+            dropdown.appendChild(item);
+        });
+    });
+
+    // Filter while typing
+    search.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        dropdown.classList.remove('hidden');
+        dropdown.querySelectorAll('.exercise-dropdown-item').forEach(function(item) {
+            item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+        dropdown.querySelectorAll('.exercise-dropdown-group').forEach(function(grp) {
+            var el = grp.nextElementSibling, vis = false;
+            while (el && !el.classList.contains('exercise-dropdown-group')) {
+                if (el.style.display !== 'none') vis = true;
+                el = el.nextElementSibling;
+            }
+            grp.style.display = vis ? '' : 'none';
+        });
+    });
+
+    search.addEventListener('focus', function() { dropdown.classList.remove('hidden'); });
+    search.addEventListener('blur',  function() {
+        setTimeout(function() { dropdown.classList.add('hidden'); }, 200);
+    });
+}
