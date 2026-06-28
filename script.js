@@ -6716,3 +6716,186 @@ var loadFromPlannedWorkout = function(plan) {
     }
     startWorkoutFromTemplateNow(plan.name, exercises);
 };
+
+// ============================================================
+// PAST WORKOUT UX — Separate experience from live workouts
+// - All sets start as completed (green) by default
+// - No live workout timer
+// - Static duration display (from start/end times if provided)
+// - Rest inputs appear between every set automatically
+// - Start/end time is now optional
+// ============================================================
+
+// Override startNewWorkout:
+// - Start/end time optional for past workouts
+// - Mark all template exercises as completed when logging past
+var startNewWorkout = function() {
+    var name = workoutNameInput ? workoutNameInput.value.trim() : '';
+    var date = workoutDateInput ? workoutDateInput.value : '';
+    if (!name) { alert('Please enter a workout name'); return; }
+    if (!date) { alert('Please select a date');        return; }
+
+    var si = null, ei = null;
+
+    if (typeof workoutIsLive !== 'undefined' && !workoutIsLive) {
+        var sEl = document.getElementById('workoutStartTimeInput');
+        var eEl = document.getElementById('workoutEndTimeInput');
+        var sv  = sEl ? sEl.value.trim() : '';
+        var ev  = eEl ? eEl.value.trim() : '';
+
+        // Only validate if at least one time is entered
+        if (sv || ev) {
+            if (!sv) { alert('Please enter a start time (or leave both blank)'); return; }
+            if (!ev) { alert('Please enter an end time (or leave both blank)');  return; }
+            var sd = new Date(date + 'T' + sv);
+            var ed = new Date(date + 'T' + ev);
+            if (ed <= sd)        { alert('End time must be after start time'); return; }
+            if (ed > new Date()) { alert('End time cannot be in the future');  return; }
+            si = new Date(date + 'T' + sv).toISOString();
+            ei = new Date(date + 'T' + ev).toISOString();
+        }
+    }
+
+    currentWorkout = { id: crypto.randomUUID(), name: name, date: date, exercises: [] };
+
+    if (typeof workoutIsLive === 'undefined' || workoutIsLive) {
+        // LIVE workout — start the timer
+        if (typeof workoutLiveStartTimestamp !== 'undefined') {
+            workoutLiveStartTimestamp = Date.now();
+            currentWorkout.workoutStartTime = new Date(workoutLiveStartTimestamp).toISOString();
+        }
+        if (typeof startWorkoutDurationTimer === 'function') startWorkoutDurationTimer();
+    } else {
+        // PAST workout — use entered times (optional)
+        if (si && ei) {
+            currentWorkout.workoutStartTime = si;
+            currentWorkout.workoutEndTime   = ei;
+            currentWorkout.workoutDuration  = Math.round((new Date(ei) - new Date(si)) / 1000);
+        }
+    }
+
+    document.getElementById('workoutSetupForm').classList.add('hidden');
+
+    if (typeof pendingTemplate !== 'undefined' && pendingTemplate && pendingTemplate.length > 0) {
+        // Template exercises — mark all as completed for past workouts
+        currentWorkout.exercises = pendingTemplate.map(function(ex) {
+            return Object.assign({}, ex, {
+                sets: (ex.sets || []).map(function(s) {
+                    var clean = Object.assign({}, s, { completed: !workoutIsLive });
+                    return clean;
+                })
+            });
+        });
+        pendingTemplate = null;
+        templateQueue   = [];
+    }
+
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.remove('hidden');
+    renderActiveWorkout();
+    if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+};
+
+// Override addExerciseInline:
+// - Past workout: blank values but completed = true (green immediately)
+// - Live workout: blank values, not completed
+var addExerciseInline = function(exerciseName) {
+    if (!exerciseName) return;
+
+    var exType    = getExerciseType(exerciseName);
+    var mode      = exType === 'timed'       ? 'timed'
+                  : exType === 'bodyweight'  ? 'bodyweight'
+                  : 'weighted';
+    var isPast    = (typeof workoutIsLive !== 'undefined') && !workoutIsLive;
+
+    var defSet;
+    if (mode === 'timed')           defSet = { duration: undefined, mode: 'timed',      completed: isPast };
+    else if (mode === 'bodyweight') defSet = { reps:     undefined, mode: 'bodyweight', completed: isPast };
+    else                            defSet = { weight: undefined, reps: undefined, mode: 'weighted', completed: isPast };
+
+    currentWorkout.exercises.push({
+        exercise:    exerciseName,
+        muscleGroup: EXERCISE_TO_MUSCLE[exerciseName] || '',
+        sets:        [defSet]
+    });
+
+    renderActiveWorkout();
+
+    setTimeout(function() {
+        var searchEl = document.getElementById('inlineExerciseSearch');
+        if (searchEl) searchEl.value = '';
+
+        var cards = document.querySelectorAll('.active-exercise-card');
+        if (!cards.length) return;
+        var lastCard = cards[cards.length - 1];
+        lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(function() {
+            var firstInput = lastCard.querySelector('.fast-weight') ||
+                             lastCard.querySelector('.fast-reps')   ||
+                             lastCard.querySelector('.fast-input');
+            if (firstInput) { firstInput.focus(); firstInput.select(); }
+        }, 300);
+    }, 80);
+};
+
+// Override addSetToExercise:
+// Past workouts: duplicated set starts as completed
+var addSetToExercise = function(exIdx) {
+    var exercise = currentWorkout.exercises[exIdx];
+    if (!exercise) return;
+    var sets  = exercise.sets;
+    var isPast = (typeof workoutIsLive !== 'undefined') && !workoutIsLive;
+    var newSet;
+    if (sets.length > 0) {
+        newSet = Object.assign({}, sets[sets.length - 1], { completed: isPast });
+    } else {
+        var exType = getExerciseType(exercise.exercise);
+        var mode   = exType === 'timed'      ? 'timed'
+                   : exType === 'bodyweight' ? 'bodyweight'
+                   : 'weighted';
+        if (mode === 'timed')           newSet = { duration: undefined, mode: 'timed',      completed: isPast };
+        else if (mode === 'bodyweight') newSet = { reps: undefined,     mode: 'bodyweight', completed: isPast };
+        else                            newSet = { weight: undefined, reps: undefined, mode: 'weighted', completed: isPast };
+    }
+    exercise.sets.push(newSet);
+    renderActiveWorkout();
+};
+
+// Post-render: for past workouts show a static info bar instead of live timer
+(function() {
+    var prevRender = renderActiveWorkout;
+    renderActiveWorkout = function() {
+        prevRender();
+
+        var isPast = (typeof workoutIsLive !== 'undefined') && !workoutIsLive;
+        if (!isPast) return; // nothing extra for live workouts
+
+        // Remove live duration bar if it exists (shouldn't for past, but safety)
+        var liveBar = document.getElementById('liveDurationBar');
+        if (liveBar) liveBar.remove();
+
+        // Add static past workout info bar if not already present
+        var display = document.getElementById('currentWorkoutDisplay');
+        if (!display || document.getElementById('pastWorkoutInfoBar')) return;
+
+        var bar = document.createElement('div');
+        bar.id        = 'pastWorkoutInfoBar';
+        bar.className = 'live-duration-bar live-duration-past';
+
+        var durText = '';
+        if (currentWorkout.workoutDuration) {
+            var h = Math.floor(currentWorkout.workoutDuration / 3600);
+            var m = Math.floor((currentWorkout.workoutDuration % 3600) / 60);
+            durText = (h > 0 ? h + ' hr ' : '') + m + ' min';
+        }
+
+        bar.innerHTML =
+            '<span class="live-dur-label">📋 Past Workout</span>' +
+            (durText ? '<span class="live-dur-time">' + durText + '</span>' : '');
+
+        var h3 = display.querySelector('h3');
+        if (h3) h3.after(bar); else display.prepend(bar);
+    };
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
