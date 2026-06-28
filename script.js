@@ -6968,24 +6968,37 @@ function showWorkoutSummary(workout, prs) {
                 val = (s.weight || 0) + ' lbs × ' + (s.reps || 0) + ' reps';
             }
 
-            var restText = s.restTaken
-                ? '<span class="sum-rest">Rest: ' + formatRestTime(s.restTaken) + '</span>'
-                : '';
-
-            return '<div class="sum-set-row">' +
+            // Set row — no rest inline
+            var rowHtml = '<div class="sum-set-row">' +
                 '<span class="sum-set-label">Set ' + (idx+1) + '</span>' +
                 '<span class="sum-set-val">' + val + '</span>' +
-                restText +
             '</div>';
+
+            // Rest appears as a separate row BELOW the set
+            var restHtml = s.restTaken
+                ? '<div class="sum-rest-row">⏱ Rest: ' + formatRestTime(s.restTaken) + '</div>'
+                : '';
+
+            return rowHtml + restHtml;
         }).join('');
 
-        // PR badge for this exercise
+        // PR badge — show actual weight × reps, not undefined
         var prBadge = '';
         if (prExercises[ex.exercise]) {
             var pr = prExercises[ex.exercise];
-            var prVal = (pr.mode === 'timed')       ? formatRestTime(pr.est1RM || 0)
-                      : (pr.mode === 'bodyweight')   ? pr.reps + ' reps'
-                      : pr.weight + ' lbs × ' + pr.reps + ' reps';
+            var prVal;
+            if (pr.weight && pr.reps) {
+                // Weighted exercise
+                prVal = pr.weight + ' lbs × ' + pr.reps + ' reps';
+            } else if (pr.reps && !pr.weight) {
+                // Bodyweight — reps is the metric
+                prVal = pr.reps + ' reps';
+            } else if (pr.est1RM) {
+                // Fallback to estimated 1RM
+                prVal = 'Est. 1RM: ' + pr.est1RM.toFixed(1) + ' lbs';
+            } else {
+                prVal = 'New record';
+            }
             prBadge = '<div class="sum-pr-badge">🏆 New PR: ' + prVal + '</div>';
         }
 

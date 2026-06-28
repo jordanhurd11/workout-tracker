@@ -5111,3 +5111,14 @@ body.light-mode .sum-stats            { background: #f9fafb; }
 body.light-mode .sum-exercise-card    { background: #f9fafb; border-color: #e5e7eb; }
 body.light-mode .sum-set-row          { border-bottom-color: rgba(0,0,0,0.05); }
 body.light-mode .sum-ex-muscle        { background: rgba(108,92,210,0.1); color: #4338ca; }
+
+/* Rest time as its own row below each set in the summary */
+.sum-rest-row {
+    font-size: 0.78em;
+    color: var(--primary-blue);
+    font-style: italic;
+    padding: 3px 0 6px 46px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.sum-rest-row:last-child { border-bottom: none; }
+body.light-mode .sum-rest-row { border-bottom-color: rgba(0,0,0,0.05); }
