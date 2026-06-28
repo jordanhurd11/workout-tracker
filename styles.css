@@ -4343,3 +4343,29 @@ body.light-mode .calendar-section {
 .po-actions .btn { text-align: center; width: 100%; }
 
 body.light-mode .po-content { background: #ffffff; }
+
+/* Calendar tooltip plan action buttons */
+.cal-tt-plan-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.cal-tt-btn {
+    padding: 5px 12px;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+.cal-tt-btn:hover { opacity: 0.85; }
+
+.cal-tt-btn-start { background: var(--primary-blue); color: #fff; }
+.cal-tt-btn-edit  { background: #4f46e5;             color: #fff; }
+.cal-tt-btn-del   { background: #ef4444;             color: #fff; }
+
+body.light-mode .cal-tt-btn-start { background: var(--primary-blue); }

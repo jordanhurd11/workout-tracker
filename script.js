@@ -288,6 +288,8 @@ let currentExerciseMode = 'weighted'; // updated when user selects an exercise
 let plannedWorkouts  = [];
 let planExercises = [];
 let selectedTemplateId = null;
+let editingPlanId = null;       // set when editing an existing planned workout
+let calTooltipHideTimer = null; // delay so tooltip stays visible when mouse moves to its buttons
 let chartAnimId = null;
 let chartState  = null;
 let editingWorkoutId    = null;
@@ -2292,8 +2294,8 @@ function renderWorkoutCalendar() {
             cell.addEventListener('click', () => openPlanModal(cellDate));
         }
 
-        cell.addEventListener('mouseenter', () => showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell));
-        cell.addEventListener('mouseleave', hideCalTooltip);
+        cell.addEventListener('mouseenter', function(){ clearTimeout(calTooltipHideTimer); showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell); });
+        cell.addEventListener('mouseleave', scheduleHideCalTooltip);
 
         workoutCalendar.appendChild(cell);
     }
@@ -2709,8 +2711,8 @@ function renderFullCalendar() {
             (function(d){ cell.addEventListener('click', function(){ openPlanModal(d); }); })(cellDate);
         }
 
-        cell.addEventListener('mouseenter', () => showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell));
-        cell.addEventListener('mouseleave', hideCalTooltip);
+        cell.addEventListener('mouseenter', function(){ clearTimeout(calTooltipHideTimer); showCalTooltip(day, calendarYear, calendarMonth, completedMap, plannedMap, cell); });
+        cell.addEventListener('mouseleave', scheduleHideCalTooltip);
 
         grid.appendChild(cell);
     }
@@ -2825,6 +2827,7 @@ function selectPlanTemplate(workoutName, btn, container) {
 function closePlanModal() {
     const modal = document.getElementById('planWorkoutModal');
     if (modal) modal.classList.add('hidden');
+    editingPlanId = null;
 }
 
 function addPlanExercise() {
@@ -2861,14 +2864,30 @@ function savePlan() {
     const time = (document.getElementById('planTime') || {}).value;
     if (!name || !name.trim()) { alert('Please enter a workout name'); return; }
     if (!date) { alert('Please select a date'); return; }
-    plannedWorkouts.push({
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        date: date,
-        time: time || '',
-        exercises: planExercises.slice(),
-        templateWorkoutId: selectedTemplateId || null
-    });
+
+    if (editingPlanId) {
+        // Update existing planned workout in-place
+        const idx = plannedWorkouts.findIndex(function(p){ return p.id === editingPlanId; });
+        if (idx !== -1) {
+            plannedWorkouts[idx] = {
+                id: editingPlanId,
+                name: name.trim(),
+                date: date,
+                time: time || '',
+                exercises: planExercises.slice(),
+                templateWorkoutId: selectedTemplateId || plannedWorkouts[idx].templateWorkoutId || null
+            };
+        }
+    } else {
+        plannedWorkouts.push({
+            id: crypto.randomUUID(),
+            name: name.trim(),
+            date: date,
+            time: time || '',
+            exercises: planExercises.slice(),
+            templateWorkoutId: selectedTemplateId || null
+        });
+    }
     const savedDate = date;
     savePlannedWorkouts();
     closePlanModal();
@@ -3101,10 +3120,12 @@ function showCalTooltip(day, year, month, completedMap, plannedMap, cellEl) {
 
     let html = '<div class="cal-tt-date">' + DAY_NAMES[cellDate.getDay()] + ', ' + MONTHS_FULL[month] + ' ' + day + ', ' + year + '</div>';
 
+    const hasPlans = plans.length > 0;
+
     if (dayWorkouts.length > 0) {
         dayWorkouts.forEach(function(w) {
             const totalSets = w.exercises.reduce(function(s,e){ return s + e.sets.length; }, 0);
-            const vol       = w.exercises.reduce(function(t,e){ return t + e.sets.reduce(function(s,set){ return s + set.weight*set.reps; }, 0); }, 0);
+            const vol       = w.exercises.reduce(function(t,e){ return t + e.sets.reduce(function(s,set){ return s + (set.weight||0)*(set.reps||0); }, 0); }, 0);
             const exLines   = w.exercises.slice(0,4).map(function(e){ return '• ' + e.exercise; }).join('<br>');
             const more      = w.exercises.length > 4 ? '<br>• +' + (w.exercises.length-4) + ' more' : '';
             html += '<div class="cal-tt-workout">' +
@@ -3113,25 +3134,52 @@ function showCalTooltip(day, year, month, completedMap, plannedMap, cellEl) {
                 '<div class="cal-tt-exercises">' + exLines + more + '</div>' +
                 '</div>';
         });
-    } else if (plans.length > 0) {
+    } else if (!hasPlans && (isPast || isToday)) {
+        html += '<div class="cal-tt-rest">😴 Rest day — no workout logged</div>';
+    } else if (!hasPlans) {
+        html += '<div class="cal-tt-empty">No workout planned<br><span class="cal-tt-hint">Click to plan one</span></div>';
+    }
+
+    // Planned workouts — always shown even alongside completed ones
+    if (hasPlans) {
         plans.forEach(function(p) {
-            const timeStr  = p.time ? '<div class="cal-tt-time">⏰ ' + formatTime(p.time) + '</div>' : '';
-            const exLines  = p.exercises && p.exercises.length > 0
-                ? '<div class="cal-tt-exercises">' + p.exercises.slice(0,4).map(function(e){ return '• '+e; }).join('<br>') + (p.exercises.length>4?'<br>• +' + (p.exercises.length-4)+' more':'') + '</div>'
+            const timeStr = p.time ? '<div class="cal-tt-time">⏰ ' + formatTime(p.time) + '</div>' : '';
+            const exLines = p.exercises && p.exercises.length > 0
+                ? '<div class="cal-tt-exercises">' + p.exercises.slice(0,4).map(function(e){ return '• '+e; }).join('<br>') + (p.exercises.length>4?'<br>• +'+(p.exercises.length-4)+' more':'') + '</div>'
                 : '';
             html += '<div class="cal-tt-plan">' +
                 '<div class="cal-tt-plan-name">📅 ' + p.name + '</div>' +
                 timeStr + exLines +
-                '<div class="cal-tt-hint">Click to start this workout</div>' +
+                '<div class="cal-tt-plan-btns">' +
+                    '<button class="cal-tt-btn cal-tt-btn-start" data-pid="' + p.id + '">▶ Start</button>' +
+                    '<button class="cal-tt-btn cal-tt-btn-edit"  data-pid="' + p.id + '">✏️ Edit</button>' +
+                    '<button class="cal-tt-btn cal-tt-btn-del"   data-pid="' + p.id + '">🗑 Delete</button>' +
+                '</div>' +
                 '</div>';
         });
-    } else if (isPast || isToday) {
-        html += '<div class="cal-tt-rest">😴 Rest day — no workout logged</div>';
-    } else {
-        html += '<div class="cal-tt-empty">No workout planned<br><span class="cal-tt-hint">Click to plan one</span></div>';
     }
 
     tt.innerHTML = html;
+
+    // Make tooltip interactive (pointer-events on) when it has action buttons
+    tt.style.pointerEvents = hasPlans ? 'auto' : 'none';
+
+    // Wire up the plan action buttons
+    if (hasPlans) {
+        tt.querySelectorAll('.cal-tt-btn-start').forEach(function(btn) {
+            btn.addEventListener('click', function(e) { e.stopPropagation(); hideCalTooltip(); startFromPlan(btn.dataset.pid); });
+        });
+        tt.querySelectorAll('.cal-tt-btn-edit').forEach(function(btn) {
+            btn.addEventListener('click', function(e) { e.stopPropagation(); hideCalTooltip(); editPlanWorkout(btn.dataset.pid); });
+        });
+        tt.querySelectorAll('.cal-tt-btn-del').forEach(function(btn) {
+            btn.addEventListener('click', function(e) { e.stopPropagation(); hideCalTooltip(); deletePlannedWorkout(btn.dataset.pid); });
+        });
+        // Keep tooltip visible while mouse is over it
+        tt.addEventListener('mouseenter', function(){ clearTimeout(calTooltipHideTimer); });
+        tt.addEventListener('mouseleave', scheduleHideCalTooltip);
+    }
+
     tt.style.visibility = 'hidden';
     tt.style.display = 'block';
 
@@ -3149,9 +3197,38 @@ function showCalTooltip(day, year, month, completedMap, plannedMap, cellEl) {
     tt.style.visibility = 'visible';
 }
 
+function scheduleHideCalTooltip() {
+    calTooltipHideTimer = setTimeout(hideCalTooltip, 180);
+}
+
 function hideCalTooltip() {
+    clearTimeout(calTooltipHideTimer);
     const tt = document.getElementById('calTooltip');
-    if (tt) tt.style.display = 'none';
+    if (tt) { tt.style.display = 'none'; tt.style.pointerEvents = 'none'; }
+}
+
+// Edit a planned workout — opens plan modal pre-filled with existing data
+function editPlanWorkout(planId) {
+    const plan = plannedWorkouts.find(function(p){ return p.id === planId; });
+    if (!plan) return;
+
+    editingPlanId = planId;
+
+    const modal = document.getElementById('planWorkoutModal');
+    if (!modal) return;
+
+    const ni = document.getElementById('planName');  if (ni) ni.value = plan.name;
+    const di = document.getElementById('planDate');  if (di) di.value = plan.date;
+    const ti = document.getElementById('planTime');  if (ti) ti.value = plan.time || '';
+
+    planExercises = plan.exercises ? plan.exercises.slice() : [];
+    selectedTemplateId = plan.templateWorkoutId || null;
+    renderPlanExerciseList();
+
+    // Populate exercise dropdown if not already done
+    populatePlanExerciseDropdown();
+
+    modal.classList.remove('hidden');
 }
 
 // ========================================
