@@ -4900,3 +4900,26 @@ body.light-mode .past-rest-row               { background: #f9fafb; border-color
 body.light-mode .rest-manual-input           { background: #ffffff; color: #111827; border-color: #d1d5db; }
 body.light-mode .start-rest-btn              { color: #6b7280; border-color: #d1d5db; }
 body.light-mode .start-rest-btn:hover        { color: #15803d; border-color: #16a34a; }
+
+/* Inline exercise add at the bottom of the workout */
+.inline-add-exercise {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-light);
+}
+
+.inline-ex-search {
+    font-size: 0.95em !important;
+    padding: 11px 14px !important;
+    border-radius: 12px !important;
+    border-style: dashed !important;
+}
+.inline-ex-search:focus {
+    border-style: solid !important;
+    border-color: #39ff8a !important;
+    box-shadow: 0 0 0 3px rgba(57,255,138,0.15) !important;
+}
+.inline-ex-search::placeholder { color: var(--text-light); opacity: 0.7; }
+
+body.light-mode .inline-add-exercise { border-top-color: #d1d5db; }
+body.light-mode .inline-ex-search::placeholder { color: #9ca3af; }

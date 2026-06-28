@@ -5964,3 +5964,189 @@ var renderActiveWorkout = function() {
 };
 
 var updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+
+// ============================================================
+// INLINE EXERCISE SEARCH — appended to script.js
+// Wraps the existing renderActiveWorkout rather than rewriting it.
+// Adds a search bar at the bottom of the exercise card list.
+// ============================================================
+
+// Add an exercise inline without going through the Add Exercise form
+function addExerciseInline(exerciseName) {
+    if (!exerciseName) return;
+
+    var exType = getExerciseType(exerciseName);
+    var mode   = exType === 'timed'       ? 'timed'
+               : exType === 'bodyweight'  ? 'bodyweight'
+               : 'weighted';
+
+    // Pre-fill from last time this exercise was logged
+    var defSet;
+    var lastEx = (typeof getLastWorkoutForExercise === 'function')
+        ? getLastWorkoutForExercise(exerciseName) : null;
+
+    if (lastEx && lastEx.sets && lastEx.sets.length > 0) {
+        defSet = Object.assign({}, lastEx.sets[lastEx.sets.length - 1], { completed: false });
+    } else {
+        if (mode === 'timed')      defSet = { duration: 60, mode: 'timed',      completed: false };
+        else if (mode === 'bodyweight') defSet = { reps: 10, mode: 'bodyweight', completed: false };
+        else                       defSet = { weight: 0,   reps: 10, mode: 'weighted', completed: false };
+    }
+
+    currentWorkout.exercises.push({
+        exercise:    exerciseName,
+        muscleGroup: EXERCISE_TO_MUSCLE[exerciseName] || '',
+        sets:        [defSet]
+    });
+
+    renderActiveWorkout();
+
+    // Clear search, keep focus so user can type the next exercise
+    setTimeout(function() {
+        var s = document.getElementById('inlineExerciseSearch');
+        if (s) { s.value = ''; s.focus(); }
+        var cards = document.querySelectorAll('.active-exercise-card');
+        if (cards.length > 0) {
+            cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 60);
+}
+
+// Wire up the inline search dropdown (called after each render)
+function setupInlineExerciseSearch() {
+    var search   = document.getElementById('inlineExerciseSearch');
+    var dropdown = document.getElementById('inlineExerciseDropdown');
+    if (!search || !dropdown || search._wired) return;
+    search._wired = true;
+
+    // Populate exercise groups
+    dropdown.innerHTML = '';
+    Object.entries(EXERCISES_BY_MUSCLE).forEach(function(pair) {
+        var muscle = pair[0], list = pair[1];
+        var grp = document.createElement('div');
+        grp.className = 'exercise-dropdown-group';
+        grp.textContent = muscle;
+        dropdown.appendChild(grp);
+        list.forEach(function(exName) {
+            var item = document.createElement('div');
+            item.className = 'exercise-dropdown-item';
+            item.textContent = exName;
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                addExerciseInline(exName);
+            });
+            dropdown.appendChild(item);
+        });
+    });
+
+    // Filter on input
+    search.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        dropdown.classList.remove('hidden');
+        dropdown.querySelectorAll('.exercise-dropdown-item').forEach(function(item) {
+            item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+        dropdown.querySelectorAll('.exercise-dropdown-group').forEach(function(grp) {
+            var el = grp.nextElementSibling, vis = false;
+            while (el && !el.classList.contains('exercise-dropdown-group')) {
+                if (el.style.display !== 'none') vis = true;
+                el = el.nextElementSibling;
+            }
+            grp.style.display = vis ? '' : 'none';
+        });
+    });
+
+    search.addEventListener('focus', function() { dropdown.classList.remove('hidden'); });
+    search.addEventListener('blur',  function() {
+        setTimeout(function() { dropdown.classList.add('hidden'); }, 200);
+    });
+}
+
+// Wrap the existing renderActiveWorkout to append the inline search bar.
+// Using the wrap pattern so we don't rewrite the existing function.
+(function() {
+    var prev = renderActiveWorkout;
+    renderActiveWorkout = function() {
+        prev();
+
+        var container = document.getElementById('currentExercisesList');
+        if (!container) return;
+
+        // Only add the search section once per render
+        if (!document.getElementById('inlineExerciseSearch')) {
+            var section = document.createElement('div');
+            section.className = 'inline-add-exercise';
+            section.innerHTML =
+                '<div class="exercise-search-wrapper">' +
+                    '<input type="text" id="inlineExerciseSearch"' +
+                    ' class="exercise-search-input inline-ex-search"' +
+                    ' placeholder="+ Add exercise..." autocomplete="off">' +
+                    '<div id="inlineExerciseDropdown" class="exercise-dropdown hidden"></div>' +
+                '</div>';
+            container.appendChild(section);
+        }
+
+        requestAnimationFrame(function() { setupInlineExerciseSearch(); });
+    };
+
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
+
+// Final override of startNewWorkout:
+// "Create New" goes directly to the card view (skips the add-exercise form).
+var startNewWorkout = function() {
+    var name = workoutNameInput ? workoutNameInput.value.trim() : '';
+    var date = workoutDateInput ? workoutDateInput.value : '';
+    if (!name) { alert('Please enter a workout name'); return; }
+    if (!date) { alert('Please select a date');        return; }
+
+    // Past workout validation
+    if (typeof workoutIsLive !== 'undefined' && !workoutIsLive) {
+        var sEl = document.getElementById('workoutStartTimeInput');
+        var eEl = document.getElementById('workoutEndTimeInput');
+        var sv  = sEl ? sEl.value : '';
+        var ev  = eEl ? eEl.value : '';
+        if (!sv) { alert('Please enter a start time'); return; }
+        if (!ev) { alert('Please enter an end time');  return; }
+        var sd = new Date(date + 'T' + sv), ed = new Date(date + 'T' + ev);
+        if (ed <= sd)        { alert('End time must be after start time'); return; }
+        if (ed > new Date()) { alert('End time cannot be in the future');  return; }
+    }
+
+    currentWorkout = { id: crypto.randomUUID(), name: name, date: date, exercises: [] };
+
+    // Timing setup
+    if (typeof workoutIsLive === 'undefined' || workoutIsLive) {
+        if (typeof workoutLiveStartTimestamp !== 'undefined') {
+            workoutLiveStartTimestamp = Date.now();
+            currentWorkout.workoutStartTime = new Date(workoutLiveStartTimestamp).toISOString();
+        }
+        if (typeof startWorkoutDurationTimer === 'function') startWorkoutDurationTimer();
+    } else {
+        var sEl2 = document.getElementById('workoutStartTimeInput');
+        var eEl2 = document.getElementById('workoutEndTimeInput');
+        if (sEl2 && eEl2) {
+            var si = new Date(date + 'T' + sEl2.value).toISOString();
+            var ei = new Date(date + 'T' + eEl2.value).toISOString();
+            currentWorkout.workoutStartTime = si;
+            currentWorkout.workoutEndTime   = ei;
+            currentWorkout.workoutDuration  = Math.round((new Date(ei) - new Date(si)) / 1000);
+        }
+    }
+
+    document.getElementById('workoutSetupForm').classList.add('hidden');
+
+    if (typeof pendingTemplate !== 'undefined' && pendingTemplate) {
+        // Template queued — use existing pre-fill flow
+        templateQueue   = pendingTemplate;
+        pendingTemplate = null;
+        showAddExerciseForm();
+        prefillNextTemplateExercise();
+    } else {
+        // Create New — skip the add-exercise form, show card view directly
+        if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+        if (currentWorkoutDisplay) currentWorkoutDisplay.classList.remove('hidden');
+        renderActiveWorkout();
+        if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+    }
+};
