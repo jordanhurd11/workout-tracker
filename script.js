@@ -6474,3 +6474,94 @@ var loadFromPlannedWorkout = function(plan) {
     }
     startWorkoutFromTemplateNow(plan.name, exercises);
 };
+
+// ============================================================
+// REST TIMER CLEANUP
+// 1. Toggle button at the top of the active workout screen
+// 2. Remove the "Start Rest" pre-set button from exercise cards
+// 3. Completing a set auto-starts rest only when toggle is ON
+// ============================================================
+
+// Override completeSet: only auto-start rest when restTimerEnabled
+var completeSet = function(exIdx, setIdx) {
+    var exercise = currentWorkout.exercises[exIdx];
+    var sets     = exercise && exercise.sets;
+    if (!sets || !sets[setIdx]) return;
+
+    // Stop any running rest timer for a different set
+    if (restIsRunning && (restForExIdx !== exIdx || restForSetIdx !== setIdx)) {
+        stopRestSave();
+    }
+
+    sets[setIdx].completed = !sets[setIdx].completed;
+
+    if (sets[setIdx].completed) {
+        lastSetCompletedTime = Date.now();
+
+        // Auto-start count-up rest ONLY if toggle is ON and workout is live
+        if (workoutIsLive && restTimerEnabled && !restIsRunning) {
+            startRestCountUp(exIdx, setIdx);
+            return; // renderActiveWorkout called inside startRestCountUp
+        }
+    } else {
+        if (restIsRunning && restForExIdx === exIdx && restForSetIdx === setIdx) {
+            stopRestDiscard();
+            return;
+        }
+        delete sets[setIdx].restTaken;
+    }
+
+    renderActiveWorkout();
+};
+
+// Simple toggle that updates the button appearance without rebuilding the old bar
+var toggleRestTimer = function() {
+    restTimerEnabled = !restTimerEnabled;
+    localStorage.setItem('restTimerEnabled', String(restTimerEnabled));
+    if (!restTimerEnabled) {
+        if (typeof stopRestTimer === 'function') stopRestTimer();
+        restIsRunning    = false;
+        restCountSeconds = 0;
+    }
+    updateRestToggleButton();
+};
+
+function updateRestToggleButton() {
+    var btn = document.getElementById('restToggleBtn');
+    if (!btn) return;
+    if (restTimerEnabled) {
+        btn.textContent  = '⏱ Rest ON';
+        btn.className    = 'rest-toggle-simple rest-toggle-on';
+    } else {
+        btn.textContent  = '⏱ Rest OFF';
+        btn.className    = 'rest-toggle-simple rest-toggle-off';
+    }
+}
+
+// Post-render wrapper:
+// - Removes the "Start Rest" pre-set button from every exercise card
+// - Adds/updates the toggle button in the live duration bar
+(function() {
+    var prevRender = renderActiveWorkout;
+
+    renderActiveWorkout = function() {
+        prevRender();
+
+        // Remove every "Start Rest" / pre-set rest section
+        document.querySelectorAll('.pre-set-rest').forEach(function(el) {
+            el.remove();
+        });
+
+        // Add toggle to the live duration bar (only once per bar)
+        var durBar = document.getElementById('liveDurationBar');
+        if (durBar && !document.getElementById('restToggleBtn')) {
+            var btn = document.createElement('button');
+            btn.id        = 'restToggleBtn';
+            btn.onclick   = toggleRestTimer;
+            durBar.appendChild(btn);
+        }
+        updateRestToggleButton();
+    };
+
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();

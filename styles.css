@@ -4944,3 +4944,22 @@ body.light-mode .inline-add-top { border-bottom-color: #d1d5db; }
     padding-bottom: 0;
 }
 body.light-mode .inline-add-after-set { border-top-color: #d1d5db; }
+
+/* Simple rest toggle button in the workout duration bar */
+.rest-toggle-simple {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border-light);
+    font-size: 0.8em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-left: auto;
+}
+.rest-toggle-on  { background: rgba(34,197,94,0.15); color: #22c55e; border-color: rgba(34,197,94,0.4); }
+.rest-toggle-off { background: rgba(156,163,175,0.12); color: var(--text-light); }
+.rest-toggle-simple:hover { filter: brightness(1.15); }
+
+body.light-mode .rest-toggle-off  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+body.light-mode .rest-toggle-on   { background: rgba(34,197,94,0.1); }
