@@ -3152,15 +3152,16 @@ function hideCalTooltip() {
 // ========================================
 
 function getWeekBounds(weekOffset) {
+    // Rolling 7-day window anchored to today, not Monday-Sunday calendar week.
+    // offset 0  → today-6 to today (last 7 days)
+    // offset -1 → today-13 to today-7 (previous 7 days)
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const dow = now.getDay();
-    const daysToMon = dow === 0 ? 6 : dow - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - daysToMon + weekOffset * 7);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
+    const end = new Date(now);
+    end.setDate(now.getDate() + weekOffset * 7);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
 }
 
 function getWeekVolume(weekOffset) {
@@ -3254,7 +3255,7 @@ function renderWeeklyVolumeLandmarks() {
             '<div class="vmc-badge ' + status.cls + '">' + status.emoji + ' ' + status.label + '</div>',
             '</div>',
             '<div class="vmc-stats">',
-            '<div class="vmc-stat"><div class="vmc-stat-label">This Week</div>',
+            '<div class="vmc-stat"><div class="vmc-stat-label">Last 7 Days</div>',
             '<div class="vmc-stat-val" data-target="' + sets + '">0 Sets</div></div>',
             '<div class="vmc-stat"><div class="vmc-stat-label">4-Week Avg</div>',
             '<div class="vmc-stat-val">' + avg.toFixed(1) + ' Sets</div></div>',
@@ -3339,8 +3340,8 @@ function getAdaptiveAverageData() {
     var divisor = Math.min(Math.max(distinctWeeks, 1), 4);
 
     var avgLabel = distinctWeeks >= 4
-        ? '4-Week Rolling Avg'
-        : ('Avg Since Tracking (' + divisor + (divisor === 1 ? ' Week)' : ' Weeks)'));
+        ? '4-Period Rolling Avg'
+        : ('Avg Since Tracking (' + divisor + (divisor === 1 ? ' Period)' : ' Periods)'));
 
     // Current week is always shown for "Total Weekly Sets"
     var thisWeek = getWeekVolume(0);
@@ -3496,7 +3497,7 @@ function renderWeeklyVolumeLandmarks() {
         '</div>',
         '<div class="vol-coaching-sentence">' + coachMsg + '</div>',
         '<div class="vol-summary-grid">',
-        '<div class="vol-sum-item"><div class="vol-sum-label">Total Weekly Sets</div>',
+        '<div class="vol-sum-item"><div class="vol-sum-label">Sets (Last 7 Days)</div>',
         '<div class="vol-sum-value" id="vsTotalSets" style="color:' + summaryColor + '">0</div></div>',
         '<div class="vol-sum-item"><div class="vol-sum-label">' + data.label + '</div>',
         '<div class="vol-sum-value" id="vs4Avg" style="color:' + summaryColor + '">0</div></div>',
@@ -3535,7 +3536,7 @@ function renderWeeklyVolumeLandmarks() {
             '<div class="vmc-badge ' + status.cls + '" style="color:' + status.color + ';background:' + status.color + '18;border-color:' + status.color + '40">' + status.badge + ' ' + status.label + '</div>',
             '</div>',
             '<div class="vmc-stats">',
-            '<div class="vmc-stat"><div class="vmc-stat-label">This Week</div>',
+            '<div class="vmc-stat"><div class="vmc-stat-label">Last 7 Days</div>',
             '<div class="vmc-stat-val" data-target="' + sets + '" style="color:' + status.color + '">0 Sets</div></div>',
             '<div class="vmc-stat"><div class="vmc-stat-label">' + data.label + '</div>',
             '<div class="vmc-stat-val">' + avgSets.toFixed(1) + ' Sets</div></div>',
