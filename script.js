@@ -5488,3 +5488,470 @@ var renderActiveWorkout = function() {
 };
 
 var updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+
+// ============================================================
+// WORKOUT TIMING & REST TIMER v2
+// - Count-UP rest timer (not preset picker)
+// - Start Now vs Log Past Workout flow
+// - Live duration counter while workout is active
+// - Manual rest entry for past workouts
+// - All data saved to localStorage, backward compatible
+// ============================================================
+
+// ── State ────────────────────────────────────────────────────
+var workoutIsLive             = true;   // true = Start Now, false = Log Past
+var workoutLiveStartTimestamp = null;   // Date.now() when "Start Now" pressed
+var workoutDurationInterval   = null;   // interval ID for live duration display
+var restIsRunning             = false;  // is a count-up rest timer active?
+var restCountSeconds          = 0;      // current count-up value
+var restCountInterval         = null;   // interval ID for count-up
+var restForExIdx              = -1;     // exercise index the timer belongs to
+var restForSetIdx             = -1;     // set index (-1 = pre-first-set rest)
+
+// ── Workout type selector ─────────────────────────────────────
+function selectWorkoutType(type) {
+    workoutIsLive = (type === 'live');
+
+    var btnNow   = document.getElementById('btnStartNow');
+    var btnPast  = document.getElementById('btnLogPast');
+    var pastArea = document.getElementById('pastWorkoutTimeInputs');
+    var dateEl   = document.getElementById('workoutDate');
+
+    if (btnNow)  btnNow.classList.toggle('active',  workoutIsLive);
+    if (btnPast) btnPast.classList.toggle('active', !workoutIsLive);
+    if (pastArea) pastArea.classList.toggle('hidden', workoutIsLive);
+
+    if (!workoutIsLive) {
+        // Default start time to "now" if blank
+        var now   = new Date();
+        var hhmm  = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+        var sEl   = document.getElementById('workoutStartTimeInput');
+        if (sEl && !sEl.value) sEl.value = hhmm;
+
+        // Wire duration preview on both time inputs
+        ['workoutStartTimeInput', 'workoutEndTimeInput'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el && !el._timingWired) {
+                el.addEventListener('change', updatePastDurationPreview);
+                el._timingWired = true;
+            }
+        });
+        if (dateEl) dateEl.addEventListener('change', updatePastDurationPreview);
+    }
+}
+
+function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+function updatePastDurationPreview() {
+    var preview = document.getElementById('pastWorkoutDurationPreview');
+    if (!preview) return;
+    var date = document.getElementById('workoutDate') ? document.getElementById('workoutDate').value : '';
+    var sVal = document.getElementById('workoutStartTimeInput') ? document.getElementById('workoutStartTimeInput').value : '';
+    var eVal = document.getElementById('workoutEndTimeInput')   ? document.getElementById('workoutEndTimeInput').value   : '';
+    if (!date || !sVal || !eVal) { preview.textContent = ''; return; }
+
+    var startDt = new Date(date + 'T' + sVal);
+    var endDt   = new Date(date + 'T' + eVal);
+    var diff    = Math.round((endDt - startDt) / 1000);
+
+    if (diff <= 0) {
+        preview.textContent = '⚠ End time must be after start time';
+        preview.className   = 'duration-preview duration-error';
+    } else if (endDt > new Date()) {
+        preview.textContent = '⚠ End time cannot be in the future';
+        preview.className   = 'duration-preview duration-error';
+    } else {
+        var h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60);
+        preview.textContent = '✓ Duration: ' + (h > 0 ? h + ' hr ' : '') + m + ' min';
+        preview.className   = 'duration-preview duration-ok';
+    }
+}
+
+// ── Live workout duration display ─────────────────────────────
+function startWorkoutDurationTimer() {
+    clearInterval(workoutDurationInterval);
+    workoutDurationInterval = setInterval(function() {
+        var el = document.getElementById('liveDurationDisplay');
+        if (!el || !workoutLiveStartTimestamp) return;
+        var secs = Math.floor((Date.now() - workoutLiveStartTimestamp) / 1000);
+        var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+        el.textContent = (h > 0 ? h + ':' + pad2(m) : m) + ':' + pad2(s);
+    }, 1000);
+}
+
+function stopWorkoutDurationTimer() {
+    clearInterval(workoutDurationInterval);
+    workoutDurationInterval = null;
+}
+
+// ── Count-UP rest timer ───────────────────────────────────────
+function startRestCountUp(exIdx, setIdx) {
+    // Stop & save any existing rest timer first
+    if (restIsRunning) stopRestSave();
+
+    restIsRunning    = true;
+    restCountSeconds = 0;
+    restForExIdx     = exIdx;
+    restForSetIdx    = setIdx;
+
+    clearInterval(restCountInterval);
+    restCountInterval = setInterval(function() {
+        restCountSeconds++;
+        // Update inline element in the exercise card
+        var inlineId = 'restInline_' + exIdx + '_' + setIdx;
+        var inlineEl = document.getElementById(inlineId);
+        if (inlineEl) inlineEl.textContent = formatRestTime(restCountSeconds);
+    }, 1000);
+
+    renderActiveWorkout();
+}
+
+// Stop and SAVE the rest duration
+function stopRestSave() {
+    clearInterval(restCountInterval);
+    restCountInterval = null;
+
+    if (restIsRunning && restCountSeconds > 0) {
+        var ex = currentWorkout.exercises[restForExIdx];
+        if (ex) {
+            if (restForSetIdx === -1) {
+                ex.preSetRest = restCountSeconds;
+            } else if (ex.sets[restForSetIdx]) {
+                ex.sets[restForSetIdx].restTaken = restCountSeconds;
+                if (typeof saveExerciseRestTime === 'function') saveExerciseRestTime(ex.exercise, restCountSeconds);
+            }
+        }
+    }
+
+    restIsRunning    = false;
+    restCountSeconds = 0;
+    restForExIdx     = -1;
+    restForSetIdx    = -1;
+
+    renderActiveWorkout();
+}
+
+// Stop WITHOUT saving (e.g., on cancel)
+function stopRestDiscard() {
+    clearInterval(restCountInterval);
+    restCountInterval = null;
+    restIsRunning    = false;
+    restCountSeconds = 0;
+    restForExIdx     = -1;
+    restForSetIdx    = -1;
+    renderActiveWorkout();
+}
+
+// ── Override startNewWorkout ──────────────────────────────────
+var startNewWorkout = function() {
+    var name = workoutNameInput ? workoutNameInput.value.trim() : '';
+    var date = workoutDateInput ? workoutDateInput.value : '';
+    if (!name) { alert('Please enter a workout name'); return; }
+    if (!date) { alert('Please select a date');        return; }
+
+    if (!workoutIsLive) {
+        var sVal = document.getElementById('workoutStartTimeInput') ? document.getElementById('workoutStartTimeInput').value : '';
+        var eVal = document.getElementById('workoutEndTimeInput')   ? document.getElementById('workoutEndTimeInput').value   : '';
+        if (!sVal) { alert('Please enter a start time'); return; }
+        if (!eVal) { alert('Please enter an end time');  return; }
+        var startDt = new Date(date + 'T' + sVal);
+        var endDt   = new Date(date + 'T' + eVal);
+        if (endDt <= startDt)  { alert('End time must be after start time'); return; }
+        if (endDt > new Date()) { alert('End time cannot be in the future');  return; }
+    }
+
+    currentWorkout = { id: crypto.randomUUID(), name: name, date: date, exercises: [] };
+
+    if (workoutIsLive) {
+        workoutLiveStartTimestamp       = Date.now();
+        currentWorkout.workoutStartTime = new Date(workoutLiveStartTimestamp).toISOString();
+        startWorkoutDurationTimer();
+    } else {
+        var sIso = new Date(date + 'T' + document.getElementById('workoutStartTimeInput').value).toISOString();
+        var eIso = new Date(date + 'T' + document.getElementById('workoutEndTimeInput').value).toISOString();
+        currentWorkout.workoutStartTime = sIso;
+        currentWorkout.workoutEndTime   = eIso;
+        currentWorkout.workoutDuration  = Math.round((new Date(eIso) - new Date(sIso)) / 1000);
+    }
+
+    document.getElementById('workoutSetupForm').classList.add('hidden');
+    showAddExerciseForm();
+};
+
+// ── Override saveCurrentWorkout ───────────────────────────────
+var saveCurrentWorkout = function() {
+    if (currentWorkout.exercises.length === 0) {
+        alert('Add at least one exercise before saving');
+        return;
+    }
+
+    // Save end time & duration for live workouts
+    if (workoutIsLive && workoutLiveStartTimestamp) {
+        var endTs = Date.now();
+        currentWorkout.workoutEndTime  = new Date(endTs).toISOString();
+        currentWorkout.workoutDuration = Math.round((endTs - workoutLiveStartTimestamp) / 1000);
+    }
+
+    // Stop any running timers
+    stopWorkoutDurationTimer();
+    if (restIsRunning) stopRestSave();
+
+    // Check for new PRs before saving
+    var prsList = (typeof checkForNewPRs === 'function') ? checkForNewPRs(currentWorkout) : [];
+
+    // Strip only UI-only 'completed' flag — keep restTaken, preSetRest, timing data
+    var toSave = Object.assign({}, currentWorkout, {
+        exercises: currentWorkout.exercises.map(function(ex) {
+            return Object.assign({}, ex, {
+                sets: ex.sets.map(function(s) {
+                    var c = Object.assign({}, s);
+                    delete c.completed;
+                    return c;
+                })
+            });
+        })
+    });
+
+    workouts.push(toSave);
+    saveToLocalStorage();
+
+    // Reset state
+    workoutLiveStartTimestamp = null;
+    workoutIsLive             = true;
+    currentWorkout            = { id: null, name: '', date: '', exercises: [] };
+    templateQueue             = [];
+    pendingTemplate           = null;
+
+    document.getElementById('workoutSetupForm').classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
+    if (currentExercisesList)  currentExercisesList.innerHTML = '';
+    if (workoutNameInput)      workoutNameInput.value = '';
+    setDefaultDate();
+    selectWorkoutType('live');
+
+    // Remove timer bar so it rebuilds fresh next workout
+    var bar = document.getElementById('restTimerBar');
+    if (bar) bar.remove();
+
+    if (typeof createWorkoutSection !== 'undefined' && createWorkoutSection)
+        createWorkoutSection.classList.add('hidden');
+
+    renderStats();
+    if (prsList && prsList.length > 0) setTimeout(function() { showPRCelebration(prsList); }, 400);
+};
+
+// ── Override completeSet ──────────────────────────────────────
+var completeSet = function(exIdx, setIdx) {
+    var exercise = currentWorkout.exercises[exIdx];
+    var sets = exercise && exercise.sets;
+    if (!sets || !sets[setIdx]) return;
+
+    // If a rest timer is running for a different set, stop and save it
+    if (restIsRunning && (restForExIdx !== exIdx || restForSetIdx !== setIdx)) {
+        stopRestSave();
+    }
+
+    sets[setIdx].completed = !sets[setIdx].completed;
+
+    if (sets[setIdx].completed) {
+        lastSetCompletedTime = Date.now();
+
+        // Auto-start count-up rest timer for LIVE workouts only
+        if (workoutIsLive && !restIsRunning) {
+            startRestCountUp(exIdx, setIdx);
+            return; // renderActiveWorkout called inside startRestCountUp
+        }
+    } else {
+        // Un-complete: stop rest timer if it belongs to this set
+        if (restIsRunning && restForExIdx === exIdx && restForSetIdx === setIdx) {
+            stopRestDiscard();
+            return;
+        }
+        delete sets[setIdx].restTaken;
+    }
+
+    renderActiveWorkout();
+};
+
+// ── Main render: active workout cards ─────────────────────────
+var renderActiveWorkout = function() {
+    var container = document.getElementById('currentExercisesList');
+    var display   = document.getElementById('currentWorkoutDisplay');
+    if (!container || !display) return;
+    display.classList.remove('hidden');
+
+    // Live duration bar (replaces old rest timer bar for header display)
+    var durBar = document.getElementById('liveDurationBar');
+    if (!durBar && workoutIsLive) {
+        durBar = document.createElement('div');
+        durBar.id        = 'liveDurationBar';
+        durBar.className = 'live-duration-bar';
+        durBar.innerHTML =
+            '<span class="live-dur-label">⏱ Workout</span>' +
+            '<span id="liveDurationDisplay" class="live-dur-time">0:00</span>';
+        var h3 = display.querySelector('h3');
+        if (h3) h3.after(durBar); else container.before(durBar);
+    }
+    if (!durBar && !workoutIsLive) {
+        // Past workout: show calculated duration
+        var calculated = currentWorkout.workoutDuration;
+        if (calculated) {
+            durBar = document.createElement('div');
+            durBar.id        = 'liveDurationBar';
+            durBar.className = 'live-duration-bar live-duration-past';
+            var h = Math.floor(calculated/3600), m = Math.floor((calculated%3600)/60);
+            durBar.innerHTML =
+                '<span class="live-dur-label">📋 Past Workout</span>' +
+                '<span class="live-dur-time">' + (h > 0 ? h + ' hr ' : '') + m + ' min</span>';
+            var h3b = display.querySelector('h3');
+            if (h3b) h3b.after(durBar); else container.before(durBar);
+        }
+    }
+
+    // Remove old rest-timer-bar (it's replaced by per-set inline timers)
+    var oldBar = document.getElementById('restTimerBar');
+    if (oldBar) oldBar.remove();
+
+    container.innerHTML = '';
+
+    if (currentWorkout.exercises.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:24px 0;">No exercises yet — add one below.</p>';
+        return;
+    }
+
+    // Apply saved rest preference for the first incomplete exercise
+    if (typeof applyExerciseRestPreference === 'function') {
+        var firstInc = currentWorkout.exercises.find(function(ex) {
+            return ex.sets.some(function(s){ return !s.completed; });
+        });
+        if (firstInc) applyExerciseRestPreference(firstInc.exercise);
+    }
+
+    currentWorkout.exercises.forEach(function(exercise, exIdx) {
+        var card = document.createElement('div');
+        card.className = 'active-exercise-card';
+
+        // Last time row
+        var lastEx    = (typeof getLastWorkoutForExercise === 'function') ? getLastWorkoutForExercise(exercise.exercise) : null;
+        var restHint  = (typeof getExerciseRestSummary === 'function')    ? getExerciseRestSummary(exercise.exercise)    : '';
+        var lastHtml  = '';
+        if (lastEx && lastEx.sets && lastEx.sets.length > 0) {
+            lastHtml = '<div class="last-time-row">Last: ' +
+                lastEx.sets.map(function(s){ return (typeof formatSetShort === 'function') ? formatSetShort(s) : ''; }).join(' · ') +
+                restHint + '</div>';
+        }
+
+        // Pre-first-set "Start Rest" area
+        var preRestHtml = '';
+        var isPreRest   = restIsRunning && restForExIdx === exIdx && restForSetIdx === -1;
+        if (!workoutIsLive) {
+            // Past workout: manual pre-set rest input
+            var preRestVal = exercise.preSetRest || 0;
+            preRestHtml = '<div class="pre-set-rest past-rest-row">' +
+                '<span class="rest-label-small">Pre-set rest:</span>' +
+                '<input type="number" class="rest-manual-input" value="' + Math.floor(preRestVal/60) + '" min="0" placeholder="0"' +
+                ' onchange="(function(el){var ex=currentWorkout.exercises[' + exIdx + '];if(ex)ex.preSetRest=(parseInt(el.value)||0)*60+((ex.preSetRest||0)%60);}).call(this,this)"> min ' +
+                '<input type="number" class="rest-manual-input" value="' + (preRestVal%60) + '" min="0" max="59" placeholder="0"' +
+                ' onchange="(function(el){var ex=currentWorkout.exercises[' + exIdx + '];if(ex)ex.preSetRest=Math.floor((ex.preSetRest||0)/60)*60+(parseInt(el.value)||0);}).call(this,this)"> sec' +
+                '</div>';
+        } else if (isPreRest) {
+            preRestHtml = '<div class="pre-set-rest">' +
+                '<span class="rest-running-label">⏱ Rest <span id="restInline_' + exIdx + '_-1" class="rest-count">' + formatRestTime(restCountSeconds) + '</span></span>' +
+                '<button class="stop-rest-btn" onclick="stopRestSave()">■ Stop Rest</button>' +
+                '</div>';
+        } else {
+            preRestHtml = '<div class="pre-set-rest">' +
+                '<button class="start-rest-btn" onclick="startRestCountUp(' + exIdx + ',-1)">⏱ Start Rest</button>' +
+                '</div>';
+        }
+
+        // Build set rows
+        var setRows = exercise.sets.map(function(set, setIdx) {
+            var sm       = set.mode || 'weighted';
+            var done     = set.completed ? ' set-row-done' : '';
+            var doneIcon = set.completed ? '✓' : '○';
+            var doneCls  = set.completed ? ' complete-done' : '';
+
+            var inputsHtml = '';
+            if (sm === 'timed') {
+                var d = set.duration || 0;
+                inputsHtml =
+                    '<input type="number" class="fast-input" value="' + Math.floor(d/60) + '" min="0"' +
+                    ' onchange="(function(){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].duration=(parseInt(this.value)||0)*60+((ex.sets[' + setIdx + '].duration||0)%60);}).call(this)"> m ' +
+                    '<input type="number" class="fast-input" value="' + (d%60) + '" min="0" max="59"' +
+                    ' onchange="(function(){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].duration=Math.floor((ex.sets[' + setIdx + '].duration||0)/60)*60+(parseInt(this.value)||0);}).call(this)"> s';
+            } else if (sm === 'bodyweight') {
+                inputsHtml =
+                    '<span class="bw-pill">BW</span>' +
+                    '<input type="number" class="fast-input" value="' + (set.reps||'') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<span class="set-unit">reps</span>' +
+                    '<div class="quick-adj"><button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1</button><button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1</button></div>';
+            } else {
+                inputsHtml =
+                    '<input type="number" class="fast-input fast-weight" value="' + (set.weight||'') + '" min="0" step="2.5" placeholder="lbs"' +
+                    ' onchange="updateSetWeight(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<span class="set-unit">×</span>' +
+                    '<input type="number" class="fast-input fast-reps" value="' + (set.reps||'') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<div class="quick-adj">' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',-5)">-5</button>' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',5)">+5</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1r</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1r</button>' +
+                    '</div>';
+            }
+
+            // Rest display after this set
+            var restHtml = '';
+            var isThisRest = restIsRunning && restForExIdx === exIdx && restForSetIdx === setIdx;
+
+            if (!workoutIsLive && set.completed) {
+                // Past workout: manual rest input
+                var rt = set.restTaken || 0;
+                restHtml =
+                    '<div class="rest-row past-rest-row">' +
+                        '<span class="rest-label-small">Rest after:</span>' +
+                        '<input type="number" class="rest-manual-input" value="' + Math.floor(rt/60) + '" min="0" placeholder="0"' +
+                        ' onchange="(function(el){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].restTaken=(parseInt(el.value)||0)*60+((ex.sets[' + setIdx + '].restTaken||0)%60);}).call(this,this)"> min ' +
+                        '<input type="number" class="rest-manual-input" value="' + (rt%60) + '" min="0" max="59" placeholder="0"' +
+                        ' onchange="(function(el){var ex=currentWorkout.exercises[' + exIdx + '];if(ex&&ex.sets[' + setIdx + '])ex.sets[' + setIdx + '].restTaken=Math.floor((ex.sets[' + setIdx + '].restTaken||0)/60)*60+(parseInt(el.value)||0);}).call(this,this)"> sec' +
+                    '</div>';
+            } else if (isThisRest) {
+                // Live rest timer running for this set
+                restHtml =
+                    '<div class="rest-row rest-running-row">' +
+                        '<span class="rest-running-label">⏱ <span id="restInline_' + exIdx + '_' + setIdx + '" class="rest-count">' + formatRestTime(restCountSeconds) + '</span></span>' +
+                        '<button class="stop-rest-btn" onclick="stopRestSave()">■ Stop Rest</button>' +
+                    '</div>';
+            } else if (set.completed && set.restTaken) {
+                // Saved rest time
+                restHtml = '<div class="rest-row rest-saved-row"><span class="rest-saved-label">Rest: ' + formatRestTime(set.restTaken) + '</span></div>';
+            }
+
+            return '<div class="active-set-row' + done + '">' +
+                '<span class="set-num-label">Set ' + (setIdx+1) + '</span>' +
+                '<div class="set-row-inputs">' + inputsHtml + '</div>' +
+                '<button class="complete-btn' + doneCls + '" onclick="completeSet(' + exIdx + ',' + setIdx + ')">' + doneIcon + '</button>' +
+                '<button class="remove-set-x" onclick="removeSetFromExercise(' + exIdx + ',' + setIdx + ')">&#x2715;</button>' +
+                '</div>' +
+                restHtml;
+        }).join('');
+
+        card.innerHTML =
+            '<div class="active-ex-header">' +
+                '<div class="active-ex-name">' + exercise.exercise + '</div>' +
+                '<span class="active-ex-muscle">' + (exercise.muscleGroup||'') + '</span>' +
+                '<button class="remove-ex-x" onclick="removeExerciseCard(' + exIdx + ')">&#x2715;</button>' +
+            '</div>' +
+            lastHtml +
+            preRestHtml +
+            '<div class="active-sets-list">' + setRows + '</div>' +
+            '<button class="add-set-btn-fast" onclick="addSetToExercise(' + exIdx + ')">+ Set</button>';
+
+        container.appendChild(card);
+    });
+};
+
+var updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };

@@ -69,6 +69,28 @@
                             <label for="workoutDate">Workout Date</label>
                             <input type="date" id="workoutDate" required>
                         </div>
+
+                        <!-- Workout type selector -->
+                        <div class="workout-type-row">
+                            <button type="button" id="btnStartNow" class="workout-type-btn active" onclick="selectWorkoutType('live')">▶ Start Now</button>
+                            <button type="button" id="btnLogPast" class="workout-type-btn" onclick="selectWorkoutType('past')">📝 Log Past Workout</button>
+                        </div>
+
+                        <!-- Past workout: start + end time (hidden by default) -->
+                        <div id="pastWorkoutTimeInputs" class="hidden">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="workoutStartTimeInput">Start Time</label>
+                                    <input type="time" id="workoutStartTimeInput">
+                                </div>
+                                <div class="form-group">
+                                    <label for="workoutEndTimeInput">End Time</label>
+                                    <input type="time" id="workoutEndTimeInput">
+                                </div>
+                            </div>
+                            <p id="pastWorkoutDurationPreview" class="duration-preview"></p>
+                        </div>
+
                         <button type="button" id="startWorkoutBtn" class="btn btn-secondary">Start Workout</button>
                     </div>
                     <div id="addExerciseForm" class="add-exercise-form hidden">
