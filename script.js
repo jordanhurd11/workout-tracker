@@ -5675,7 +5675,16 @@ var startNewWorkout = function() {
     }
 
     document.getElementById('workoutSetupForm').classList.add('hidden');
-    showAddExerciseForm();
+
+    // Respect pendingTemplate (set when loading from a template/history card)
+    if (pendingTemplate) {
+        templateQueue   = pendingTemplate;
+        pendingTemplate = null;
+        showAddExerciseForm();
+        prefillNextTemplateExercise();
+    } else {
+        showAddExerciseForm();
+    }
 };
 
 // ── Override saveCurrentWorkout ───────────────────────────────
