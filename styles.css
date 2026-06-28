@@ -4963,3 +4963,6 @@ body.light-mode .inline-add-after-set { border-top-color: #d1d5db; }
 
 body.light-mode .rest-toggle-off  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
 body.light-mode .rest-toggle-on   { background: rgba(34,197,94,0.1); }
+
+/* Space between Workout label and live timer */
+.live-dur-label { margin-right: 8px; }
