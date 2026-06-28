@@ -6326,3 +6326,151 @@ function buildInlineSearchSection() {
         '</div>';
     return div;
 }
+
+// ============================================================
+// FIX 1: After adding an exercise inline, scroll to it and
+//         focus the first weight input so user can type immediately.
+// ============================================================
+
+var addExerciseInline = function(exerciseName) {
+    if (!exerciseName) return;
+
+    var exType = getExerciseType(exerciseName);
+    var mode   = exType === 'timed'      ? 'timed'
+               : exType === 'bodyweight' ? 'bodyweight'
+               : 'weighted';
+
+    // Blank set — user fills in their own values
+    var defSet;
+    if (mode === 'timed')           defSet = { duration: undefined, mode: 'timed',      completed: false };
+    else if (mode === 'bodyweight') defSet = { reps:     undefined, mode: 'bodyweight', completed: false };
+    else                            defSet = { weight:   undefined, reps: undefined, mode: 'weighted', completed: false };
+
+    currentWorkout.exercises.push({
+        exercise:    exerciseName,
+        muscleGroup: EXERCISE_TO_MUSCLE[exerciseName] || '',
+        sets:        [defSet]
+    });
+
+    renderActiveWorkout();
+
+    // Scroll to the new card and focus the first input (weight for Set 1)
+    setTimeout(function() {
+        // Clear search bar
+        var searchEl = document.getElementById('inlineExerciseSearch');
+        if (searchEl) searchEl.value = '';
+
+        // Find the last exercise card
+        var cards = document.querySelectorAll('.active-exercise-card');
+        if (!cards.length) return;
+        var lastCard = cards[cards.length - 1];
+
+        // Scroll card into view
+        lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Focus the first weight / reps input so user can start typing
+        setTimeout(function() {
+            var firstInput = lastCard.querySelector('.fast-weight') ||
+                             lastCard.querySelector('.fast-reps')   ||
+                             lastCard.querySelector('.fast-input');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select();
+            }
+        }, 300);
+    }, 80);
+};
+
+// ============================================================
+// FIX 2: Templates → new card UI with pre-filled values.
+// Re-implementing startWorkoutFromTemplateNow cleanly.
+// ============================================================
+
+function startWorkoutFromTemplateNow(workoutName, exercises) {
+    var today = new Date().toISOString().split('T')[0];
+    var now   = Date.now();
+
+    // Create workout immediately with exercises pre-loaded
+    currentWorkout = {
+        id:               crypto.randomUUID(),
+        name:             workoutName,
+        date:             today,
+        workoutStartTime: new Date(now).toISOString(),
+        exercises:        (exercises || []).map(function(ex) {
+            return {
+                exercise:    ex.exercise,
+                muscleGroup: ex.muscleGroup || EXERCISE_TO_MUSCLE[ex.exercise] || '',
+                sets: (ex.sets || []).map(function(s) {
+                    return Object.assign({}, s, { completed: false });
+                })
+            };
+        })
+    };
+
+    // Always start as a live workout
+    workoutIsLive             = true;
+    workoutLiveStartTimestamp = now;
+    templateQueue             = [];
+    pendingTemplate           = null;
+
+    // Keep name/date inputs in sync for cancel/reset
+    if (workoutNameInput) workoutNameInput.value = workoutName;
+    if (workoutDateInput) workoutDateInput.value  = today;
+
+    // Show the workout section, skip the setup and add-exercise forms
+    if (createWorkoutSection) createWorkoutSection.classList.remove('hidden');
+    var sf = document.getElementById('workoutSetupForm');
+    if (sf) sf.classList.add('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+
+    // Start the live duration timer if available
+    if (typeof startWorkoutDurationTimer === 'function') startWorkoutDurationTimer();
+
+    // Render all exercise cards in the new UI
+    renderActiveWorkout();
+
+    if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Override useWorkoutTemplate — "Use a Saved Template" modal
+var useWorkoutTemplate = function(workoutName) {
+    var template = workouts
+        .filter(function(w){ return w.name === workoutName; })
+        .sort(function(a, b){ return new Date(b.date) - new Date(a.date); })[0];
+    if (!template) return;
+    closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(workoutName, template.exercises);
+};
+
+// Override loadFromTemplateObj — Templates page "Start Workout" button
+var loadFromTemplateObj = function(template) {
+    if (typeof closeWorkoutLayoutModal === 'function') closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(template.templateName, template.exercises);
+};
+
+// Override startWorkoutFromId — History card "Start" button
+var startWorkoutFromId = function(workoutId) {
+    var workout = workouts.find(function(w){ return w.id === workoutId; });
+    if (!workout) return;
+    if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
+    if (typeof closeWorkoutLayoutModal === 'function') closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(workout.name, workout.exercises);
+};
+
+// Override loadFromPlannedWorkout — Calendar planned workouts
+var loadFromPlannedWorkout = function(plan) {
+    var exercises = [];
+    if (plan.templateWorkoutId) {
+        if (typeof loadTemplates === 'function') loadTemplates();
+        if (typeof workoutTemplates !== 'undefined') {
+            var tpl = workoutTemplates.find(function(t){ return t.templateId === plan.templateWorkoutId; });
+            if (tpl) exercises = tpl.exercises;
+        }
+    }
+    if (!exercises.length && plan.exercises && plan.exercises.length) {
+        exercises = plan.exercises.map(function(ex) {
+            return { exercise: ex, muscleGroup: EXERCISE_TO_MUSCLE[ex] || '', sets: [] };
+        });
+    }
+    startWorkoutFromTemplateNow(plan.name, exercises);
+};
