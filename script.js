@@ -4694,3 +4694,310 @@ function deletePlannedWorkout(planId) {
         renderWorkoutCalendar();
     }
 }
+
+// ============================================================
+// FAST WORKOUT LOGGING SYSTEM
+// Designed to feel like Strong / Hevy — minimal taps to log a set.
+// All existing data structures and localStorage keys are preserved.
+// ============================================================
+
+// ── Rest Timer state ─────────────────────────────────────────
+var restTimerInterval  = null;
+var restTimerSeconds   = 0;
+var restTimerRunning   = false;
+var restTimerDefault   = 90; // seconds — user can change via the UI
+
+function formatRestTime(secs) {
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    return m + ':' + (s < 10 ? '0' + s : s);
+}
+
+function startRestTimer() {
+    stopRestTimer();
+    restTimerSeconds  = restTimerDefault;
+    restTimerRunning  = true;
+    updateRestTimerDisplay();
+    restTimerInterval = setInterval(function() {
+        if (restTimerSeconds > 0) {
+            restTimerSeconds--;
+            updateRestTimerDisplay();
+        } else {
+            stopRestTimer();
+            var bar = document.getElementById('restTimerBar');
+            if (bar) bar.classList.add('rest-timer-done');
+        }
+    }, 1000);
+}
+
+function stopRestTimer() {
+    clearInterval(restTimerInterval);
+    restTimerRunning = false;
+}
+
+function resetRestTimer() {
+    stopRestTimer();
+    restTimerSeconds = 0;
+    var bar = document.getElementById('restTimerBar');
+    if (bar) bar.classList.remove('rest-timer-done');
+    updateRestTimerDisplay();
+}
+
+function updateRestTimerDisplay() {
+    var el = document.getElementById('restTimerDisplay');
+    if (!el) return;
+    if (restTimerSeconds > 0 || restTimerRunning) {
+        el.textContent = 'Rest  ' + formatRestTime(restTimerSeconds);
+        var bar = document.getElementById('restTimerBar');
+        if (bar) bar.classList.toggle('rest-timer-running', restTimerRunning);
+    } else {
+        el.textContent = '⏱ Rest Timer';
+    }
+}
+
+// ── Look up previous workout for "Last time" display ─────────
+function getLastWorkoutForExercise(exerciseName) {
+    var currentDate = currentWorkout.date || '9999-99-99';
+    // Search workouts in reverse-date order, skip the current session
+    var history = workouts
+        .filter(function(w) { return w.id !== currentWorkout.id; })
+        .sort(function(a, b) { return b.date.localeCompare(a.date); });
+
+    for (var i = 0; i < history.length; i++) {
+        var ex = history[i].exercises.find(function(e) { return e.exercise === exerciseName; });
+        if (ex) return ex;
+    }
+    return null;
+}
+
+function formatSetShort(set) {
+    var m = set.mode || 'weighted';
+    if (m === 'timed') {
+        var d = set.duration || 0;
+        var min = Math.floor(d/60), sec = d%60;
+        return min > 0 ? min + 'm' + sec + 's' : sec + 's';
+    }
+    if (m === 'bodyweight') return 'BW×' + (set.reps || 0);
+    return (set.weight || 0) + '×' + (set.reps || 0);
+}
+
+// ── Set management ───────────────────────────────────────────
+
+// Toggle set as completed; starts rest timer on completion
+function completeSet(exIdx, setIdx) {
+    var sets = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets;
+    if (!sets || !sets[setIdx]) return;
+    sets[setIdx].completed = !sets[setIdx].completed;
+    if (sets[setIdx].completed) {
+        startRestTimer();
+        document.getElementById('restTimerBar') && document.getElementById('restTimerBar').classList.remove('rest-timer-done');
+    }
+    renderActiveWorkout();
+}
+
+// Add a set to an exercise, duplicating the previous set's values
+function addSetToExercise(exIdx) {
+    var exercise = currentWorkout.exercises[exIdx];
+    if (!exercise) return;
+    var sets = exercise.sets;
+    var newSet;
+    if (sets.length > 0) {
+        // Duplicate last set, mark as incomplete
+        newSet = Object.assign({}, sets[sets.length - 1], { completed: false });
+    } else {
+        var mode = getExerciseType(exercise.exercise);
+        if (mode === 'timed')      newSet = { duration: 60, mode: 'timed', completed: false };
+        else if (mode === 'bodyweight') newSet = { reps: 10, mode: 'bodyweight', completed: false };
+        else                            newSet = { weight: 0, reps: 10, mode: 'weighted', completed: false };
+    }
+    exercise.sets.push(newSet);
+    renderActiveWorkout();
+}
+
+// Remove a single set (removes exercise card if last set deleted)
+function removeSetFromExercise(exIdx, setIdx) {
+    var exercise = currentWorkout.exercises[exIdx];
+    if (!exercise) return;
+    exercise.sets.splice(setIdx, 1);
+    if (exercise.sets.length === 0) {
+        currentWorkout.exercises.splice(exIdx, 1);
+    }
+    renderActiveWorkout();
+}
+
+// Remove entire exercise card
+function removeExerciseCard(exIdx) {
+    currentWorkout.exercises.splice(exIdx, 1);
+    renderActiveWorkout();
+}
+
+// Quick +/- adjustments — update data then re-render
+function adjustWeight(exIdx, setIdx, delta) {
+    var set = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets[setIdx];
+    if (!set) return;
+    set.weight = Math.max(0, ((set.weight || 0) + delta));
+    renderActiveWorkout();
+}
+
+function adjustReps(exIdx, setIdx, delta) {
+    var set = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets[setIdx];
+    if (!set) return;
+    set.reps = Math.max(1, ((set.reps || 0) + delta));
+    renderActiveWorkout();
+}
+
+// Update weight from inline input without re-rendering (keeps focus)
+function updateSetWeight(exIdx, setIdx, val) {
+    var set = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets[setIdx];
+    if (set) set.weight = parseFloat(val) || 0;
+}
+function updateSetReps(exIdx, setIdx, val) {
+    var set = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets[setIdx];
+    if (set) set.reps = parseInt(val) || 0;
+}
+function updateSetDuration(exIdx, setIdx, mins, secs) {
+    var set = currentWorkout.exercises[exIdx] && currentWorkout.exercises[exIdx].sets[setIdx];
+    if (set) set.duration = (parseInt(mins)||0)*60 + (parseInt(secs)||0);
+}
+
+// ── Main render: Active workout card view ────────────────────
+function renderActiveWorkout() {
+    var container = document.getElementById('currentExercisesList');
+    var display   = document.getElementById('currentWorkoutDisplay');
+    if (!container || !display) return;
+
+    display.classList.remove('hidden');
+
+    // ── Rest timer bar (injected once above the list) ───────
+    var timerBar = document.getElementById('restTimerBar');
+    if (!timerBar) {
+        timerBar = document.createElement('div');
+        timerBar.id = 'restTimerBar';
+        timerBar.className = 'rest-timer-bar';
+        timerBar.innerHTML =
+            '<span id="restTimerDisplay">⏱ Rest Timer</span>' +
+            '<div class="rest-timer-controls">' +
+                '<button onclick="startRestTimer()" class="rest-btn">Start</button>' +
+                '<button onclick="resetRestTimer()" class="rest-btn">Reset</button>' +
+                '<select id="restTimerSelect" onchange="restTimerDefault=parseInt(this.value)" class="rest-select">' +
+                    '<option value="60">60s</option>' +
+                    '<option value="90" selected>90s</option>' +
+                    '<option value="120">2m</option>' +
+                    '<option value="180">3m</option>' +
+                '</select>' +
+            '</div>';
+        // Insert before the exercise list
+        var h3 = display.querySelector('h3');
+        if (h3) h3.after(timerBar);
+        else container.before(timerBar);
+    }
+    updateRestTimerDisplay();
+
+    container.innerHTML = '';
+
+    if (currentWorkout.exercises.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:24px 0;">No exercises yet — add one below.</p>';
+        return;
+    }
+
+    currentWorkout.exercises.forEach(function(exercise, exIdx) {
+        var card = document.createElement('div');
+        card.className = 'active-exercise-card';
+
+        var mode = exercise.sets.length > 0 ? (exercise.sets[0].mode || 'weighted') : (getExerciseType(exercise.exercise) === 'timed' ? 'timed' : getExerciseType(exercise.exercise) === 'bodyweight' ? 'bodyweight' : 'weighted');
+
+        // "Last time" lookup
+        var lastEx = getLastWorkoutForExercise(exercise.exercise);
+        var lastHtml = '';
+        if (lastEx && lastEx.sets && lastEx.sets.length > 0) {
+            lastHtml = '<div class="last-time-row">Last: ' +
+                lastEx.sets.map(formatSetShort).join(' · ') +
+                '</div>';
+        }
+
+        // Build each set row
+        var setRows = exercise.sets.map(function(set, setIdx) {
+            var sm        = set.mode || 'weighted';
+            var done      = set.completed ? ' set-row-done' : '';
+            var doneIcon  = set.completed ? '✓' : '○';
+            var doneCls   = set.completed ? ' complete-done' : '';
+
+            var inputsHtml = '';
+            if (sm === 'timed') {
+                var d = set.duration || 0;
+                var mm = Math.floor(d/60), ss = d%60;
+                inputsHtml =
+                    '<input type="number" class="fast-input" value="' + mm + '" min="0"' +
+                    ' onchange="updateSetDuration(' + exIdx + ',' + setIdx + ',this.value,document.getElementById(\'ss_' + exIdx + '_' + setIdx + '\').value)"' +
+                    '> <span class="set-unit">m</span>' +
+                    '<input type="number" class="fast-input" id="ss_' + exIdx + '_' + setIdx + '" value="' + ss + '" min="0" max="59"' +
+                    ' onchange="updateSetDuration(' + exIdx + ',' + setIdx + ',document.getElementById(\'mm_' + exIdx + '_' + setIdx + '\').value,this.value)"' +
+                    '> <span class="set-unit">s</span>';
+            } else if (sm === 'bodyweight') {
+                inputsHtml =
+                    '<span class="bw-pill">BW</span>' +
+                    '<input type="number" class="fast-input" value="' + (set.reps || '') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<span class="set-unit">reps</span>' +
+                    '<div class="quick-adj">' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1</button>' +
+                    '</div>';
+            } else {
+                inputsHtml =
+                    '<input type="number" class="fast-input fast-weight" value="' + (set.weight || '') + '" min="0" step="2.5" placeholder="lbs"' +
+                    ' onchange="updateSetWeight(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<span class="set-unit">×</span>' +
+                    '<input type="number" class="fast-input fast-reps" value="' + (set.reps || '') + '" min="1" placeholder="reps"' +
+                    ' onchange="updateSetReps(' + exIdx + ',' + setIdx + ',this.value)">' +
+                    '<div class="quick-adj">' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',-5)">-5</button>' +
+                        '<button onclick="adjustWeight(' + exIdx + ',' + setIdx + ',5)">+5</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',-1)">-1r</button>' +
+                        '<button onclick="adjustReps(' + exIdx + ',' + setIdx + ',1)">+1r</button>' +
+                    '</div>';
+            }
+
+            return '<div class="active-set-row' + done + '">' +
+                '<span class="set-num-label">Set ' + (setIdx+1) + '</span>' +
+                '<div class="set-row-inputs">' + inputsHtml + '</div>' +
+                '<button class="complete-btn' + doneCls + '" onclick="completeSet(' + exIdx + ',' + setIdx + ')" title="Complete set">' + doneIcon + '</button>' +
+                '<button class="remove-set-x" onclick="removeSetFromExercise(' + exIdx + ',' + setIdx + ')" title="Remove set">✕</button>' +
+                '</div>';
+        }).join('');
+
+        card.innerHTML =
+            '<div class="active-ex-header">' +
+                '<div class="active-ex-name">' + exercise.exercise + '</div>' +
+                '<span class="active-ex-muscle">' + (exercise.muscleGroup || '') + '</span>' +
+                '<button class="remove-ex-x" onclick="removeExerciseCard(' + exIdx + ')" title="Remove exercise">✕</button>' +
+            '</div>' +
+            lastHtml +
+            '<div class="active-sets-list">' + setRows + '</div>' +
+            '<button class="add-set-btn-fast" onclick="addSetToExercise(' + exIdx + ')">+ Set</button>';
+
+        container.appendChild(card);
+    });
+}
+
+// ── Override updateCurrentWorkoutDisplay to use new renderer ─
+// Preserves all existing callers — they just get the new UI.
+function updateCurrentWorkoutDisplay() {
+    renderActiveWorkout();
+}
+
+// ── Strip completed flags before saving (keeps localStorage clean) ─
+var _origSaveCurrentWorkout = saveCurrentWorkout;
+saveCurrentWorkout = function() {
+    // Temporarily strip completed flags from sets before the original save runs
+    currentWorkout.exercises = currentWorkout.exercises.map(function(ex) {
+        return Object.assign({}, ex, {
+            sets: ex.sets.map(function(s) {
+                var clean = Object.assign({}, s);
+                delete clean.completed;
+                return clean;
+            })
+        });
+    });
+    _origSaveCurrentWorkout();
+};
