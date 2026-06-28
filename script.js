@@ -6150,3 +6150,35 @@ var startNewWorkout = function() {
         if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
     }
 };
+
+// Override addExerciseInline: Create New workout starts with blank values.
+// Templates still pre-fill (they use their own loadFromTemplateObj path).
+var addExerciseInline = function(exerciseName) {
+    if (!exerciseName) return;
+
+    var exType = getExerciseType(exerciseName);
+    var mode   = exType === 'timed'      ? 'timed'
+               : exType === 'bodyweight' ? 'bodyweight'
+               : 'weighted';
+
+    // Always blank — user fills in their own values for a fresh workout
+    var defSet;
+    if (mode === 'timed')           defSet = { duration: undefined, mode: 'timed',      completed: false };
+    else if (mode === 'bodyweight') defSet = { reps:     undefined, mode: 'bodyweight', completed: false };
+    else                            defSet = { weight:   undefined, reps: undefined, mode: 'weighted', completed: false };
+
+    currentWorkout.exercises.push({
+        exercise:    exerciseName,
+        muscleGroup: EXERCISE_TO_MUSCLE[exerciseName] || '',
+        sets:        [defSet]
+    });
+
+    renderActiveWorkout();
+
+    setTimeout(function() {
+        var s = document.getElementById('inlineExerciseSearch');
+        if (s) { s.value = ''; s.focus(); }
+        var cards = document.querySelectorAll('.active-exercise-card');
+        if (cards.length > 0) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
+};
