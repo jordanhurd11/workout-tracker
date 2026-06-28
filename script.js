@@ -6565,3 +6565,154 @@ function updateRestToggleButton() {
 
     updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
 })();
+
+// ============================================================
+// TEMPLATES → SETUP FORM FIRST
+// When a template / history card is selected, show the "Create a
+// Workout" form with the name pre-filled so the user can change
+// the date (or switch to Log Past Workout) before exercises load.
+// ============================================================
+
+// Show the setup form with the template name pre-filled.
+// Stores exercises in pendingTemplate for after the form is submitted.
+function startWorkoutFromTemplateNow(workoutName, exercises) {
+    // Store exercises to load once the form is confirmed
+    pendingTemplate = (exercises || []).map(function(ex) {
+        return Object.assign({}, ex, {
+            sets: (ex.sets || []).map(function(s) {
+                return Object.assign({}, s, { completed: false });
+            })
+        });
+    });
+
+    templateQueue = [];
+
+    // Pre-fill the setup form
+    if (workoutNameInput) workoutNameInput.value = workoutName;
+    setDefaultDate();
+
+    // Reset to "Start Now" by default
+    workoutIsLive = true;
+    if (typeof selectWorkoutType === 'function') selectWorkoutType('live');
+
+    // Show setup form, hide the exercise areas
+    if (createWorkoutSection) createWorkoutSection.classList.remove('hidden');
+    var sf = document.getElementById('workoutSetupForm');
+    if (sf) sf.classList.remove('hidden');
+    if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+    if (currentWorkoutDisplay) currentWorkoutDisplay.classList.add('hidden');
+
+    // Remove the old live duration bar so it rebuilds on the next workout
+    var oldBar = document.getElementById('liveDurationBar');
+    if (oldBar) oldBar.remove();
+
+    if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Override startNewWorkout: when pendingTemplate is set, load exercises
+// directly into the card view instead of going through the old add-exercise form.
+var startNewWorkout = function() {
+    var name = workoutNameInput ? workoutNameInput.value.trim() : '';
+    var date = workoutDateInput ? workoutDateInput.value : '';
+    if (!name) { alert('Please enter a workout name'); return; }
+    if (!date) { alert('Please select a date');        return; }
+
+    // Past workout validation
+    if (typeof workoutIsLive !== 'undefined' && !workoutIsLive) {
+        var sEl = document.getElementById('workoutStartTimeInput');
+        var eEl = document.getElementById('workoutEndTimeInput');
+        var sv  = sEl ? sEl.value : '';
+        var ev  = eEl ? eEl.value : '';
+        if (!sv) { alert('Please enter a start time'); return; }
+        if (!ev) { alert('Please enter an end time');  return; }
+        var sd = new Date(date + 'T' + sv);
+        var ed = new Date(date + 'T' + ev);
+        if (ed <= sd)        { alert('End time must be after start time'); return; }
+        if (ed > new Date()) { alert('End time cannot be in the future');  return; }
+    }
+
+    // Build workout object
+    currentWorkout = { id: crypto.randomUUID(), name: name, date: date, exercises: [] };
+
+    // Timing setup
+    if (typeof workoutIsLive === 'undefined' || workoutIsLive) {
+        if (typeof workoutLiveStartTimestamp !== 'undefined') {
+            workoutLiveStartTimestamp = Date.now();
+            currentWorkout.workoutStartTime = new Date(workoutLiveStartTimestamp).toISOString();
+        }
+        if (typeof startWorkoutDurationTimer === 'function') startWorkoutDurationTimer();
+    } else {
+        var sEl2 = document.getElementById('workoutStartTimeInput');
+        var eEl2 = document.getElementById('workoutEndTimeInput');
+        if (sEl2 && eEl2) {
+            var si = new Date(date + 'T' + sEl2.value).toISOString();
+            var ei = new Date(date + 'T' + eEl2.value).toISOString();
+            currentWorkout.workoutStartTime = si;
+            currentWorkout.workoutEndTime   = ei;
+            currentWorkout.workoutDuration  = Math.round((new Date(ei) - new Date(si)) / 1000);
+        }
+    }
+
+    document.getElementById('workoutSetupForm').classList.add('hidden');
+
+    if (typeof pendingTemplate !== 'undefined' && pendingTemplate && pendingTemplate.length > 0) {
+        // Load template exercises directly into currentWorkout (bypasses old one-by-one form)
+        currentWorkout.exercises = pendingTemplate.map(function(ex) {
+            return Object.assign({}, ex);
+        });
+        pendingTemplate = null;
+        templateQueue   = [];
+        if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+        if (currentWorkoutDisplay) currentWorkoutDisplay.classList.remove('hidden');
+        renderActiveWorkout();
+    } else {
+        // Create New — blank card view with inline search
+        pendingTemplate = null;
+        templateQueue   = [];
+        if (addExerciseForm)       addExerciseForm.classList.add('hidden');
+        if (currentWorkoutDisplay) currentWorkoutDisplay.classList.remove('hidden');
+        renderActiveWorkout();
+    }
+
+    if (createWorkoutSection) createWorkoutSection.scrollIntoView({ behavior: 'smooth' });
+};
+
+// Re-apply overrides so all entry points use the new flow
+var useWorkoutTemplate = function(workoutName) {
+    var template = workouts
+        .filter(function(w){ return w.name === workoutName; })
+        .sort(function(a, b){ return new Date(b.date) - new Date(a.date); })[0];
+    if (!template) return;
+    closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(workoutName, template.exercises);
+};
+
+var loadFromTemplateObj = function(template) {
+    if (typeof closeWorkoutLayoutModal === 'function') closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(template.templateName, template.exercises);
+};
+
+var startWorkoutFromId = function(workoutId) {
+    var workout = workouts.find(function(w){ return w.id === workoutId; });
+    if (!workout) return;
+    if (workoutDetailModal) workoutDetailModal.classList.add('hidden');
+    if (typeof closeWorkoutLayoutModal === 'function') closeWorkoutLayoutModal();
+    startWorkoutFromTemplateNow(workout.name, workout.exercises);
+};
+
+var loadFromPlannedWorkout = function(plan) {
+    var exercises = [];
+    if (plan.templateWorkoutId) {
+        if (typeof loadTemplates === 'function') loadTemplates();
+        if (typeof workoutTemplates !== 'undefined') {
+            var tpl = workoutTemplates.find(function(t){ return t.templateId === plan.templateWorkoutId; });
+            if (tpl) exercises = tpl.exercises;
+        }
+    }
+    if (!exercises.length && plan.exercises && plan.exercises.length) {
+        exercises = plan.exercises.map(function(ex) {
+            return { exercise: ex, muscleGroup: EXERCISE_TO_MUSCLE[ex] || '', sets: [] };
+        });
+    }
+    startWorkoutFromTemplateNow(plan.name, exercises);
+};
