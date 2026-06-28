@@ -2092,7 +2092,10 @@ function renderPastWorkoutsInModal() {
         const item = document.createElement('div');
         item.className = 'past-workout-item';
         
-        const lastWorkout = workouts.find(w => w.name === name);
+        // Use most recent workout with this name (not first)
+        const lastWorkout = workouts
+            .filter(w => w.name === name)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         const exerciseNames = lastWorkout.exercises.map(e => e.exercise).slice(0, 3).join(', ');
         const moreExercises = lastWorkout.exercises.length > 3 ? ` +${lastWorkout.exercises.length - 3} more` : '';
         
@@ -2130,7 +2133,10 @@ function startWorkoutFromId(workoutId) {
 }
 
 function useWorkoutTemplate(workoutName) {
-    const template = workouts.find(w => w.name === workoutName);
+    // Always use the most recent workout with this name so sets/reps are up to date
+    const template = workouts
+        .filter(w => w.name === workoutName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
     if (!template) return;
 
     closeWorkoutLayoutModal();
