@@ -5251,3 +5251,13 @@ body.light-mode .sum-rest-row { border-bottom-color: rgba(0,0,0,0.05); }
         padding: 10px 8px;
     }
 }
+
+/* lbs / reps labels next to inputs */
+.input-unit-label {
+    font-size: 0.75em;
+    color: var(--text-light);
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+body.light-mode .input-unit-label { color: #6b7280; }

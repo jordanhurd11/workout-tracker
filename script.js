@@ -7465,3 +7465,26 @@ function openWorkoutDetail(workoutId) {
         showWorkoutSummary(snapshot, prs);
     };
 })();
+
+// Add lbs / reps labels after each input field in the active workout
+(function() {
+    var prev = renderActiveWorkout;
+    renderActiveWorkout = function() {
+        prev();
+        // Insert "lbs" after every weight input
+        document.querySelectorAll('.active-exercise-card .fast-weight').forEach(function(inp) {
+            var lbl = document.createElement('span');
+            lbl.className = 'input-unit-label';
+            lbl.textContent = 'lbs';
+            inp.after(lbl);
+        });
+        // Insert "reps" after every reps input
+        document.querySelectorAll('.active-exercise-card .fast-reps').forEach(function(inp) {
+            var lbl = document.createElement('span');
+            lbl.className = 'input-unit-label';
+            lbl.textContent = 'reps';
+            inp.after(lbl);
+        });
+    };
+    updateCurrentWorkoutDisplay = function() { renderActiveWorkout(); };
+})();
